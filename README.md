@@ -50,22 +50,30 @@ The quote and removal forms validate with zod on the client and show a success s
 
 ## Deploy (Ubuntu server, nginx + PM2)
 
-The site runs as a Node process on port 3300 behind nginx. Everything needed is in `deploy/`.
+Live at https://www.scrapex.site. Plain http and the bare domain redirect there with a 301.
 
-First time on the server:
+The app runs under PM2 as `scrapex` on 127.0.0.1:3300, behind nginx. Everything needed is in `deploy/`.
+
+First time on a server:
 
 ```sh
+# 1. Install Node 22 and PM2 if missing, clone, build and start the app
 curl -fsSL https://raw.githubusercontent.com/webifygit/ScrapeX.js/main/deploy/deploy.sh | bash
+# 2. Get a Let's Encrypt certificate for both names
+sudo certbot certonly --nginx -d scrapex.site -d www.scrapex.site
+# 3. Install the nginx config and reload
 sudo cp /var/www/scrapex.site/deploy/nginx/scrapex.site.conf /etc/nginx/sites-available/scrapex.site
-sudo ln -s /etc/nginx/sites-available/scrapex.site /etc/nginx/sites-enabled/
+sudo ln -sf /etc/nginx/sites-available/scrapex.site /etc/nginx/sites-enabled/scrapex.site
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d scrapex.site -d www.scrapex.site
 ```
 
 Every later update, after pushing to `main`:
 
 ```sh
+# on the server
 bash /var/www/scrapex.site/deploy/deploy.sh
+# or from this folder on your machine
+ssh root@<server> 'bash -s' < deploy/deploy.sh
 ```
 
-`deploy.sh` installs Node 22 and PM2 if missing, clones or fast-forwards the repo, runs `npm ci` and `npm run build`, and restarts the `scrapex` PM2 process.
+`deploy.sh` installs Node 22 and PM2 if missing, clones or fast-forwards the repo, runs `npm ci` and `npm run build`, and restarts the `scrapex` PM2 process. It does not touch nginx: after changing `deploy/nginx/scrapex.site.conf`, repeat step 3.

@@ -9,7 +9,7 @@ const jetbrains = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500"], v
 const description = "Custom web scrapers that collect, check and deliver public web data on your schedule.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://scrapex.site"),
+  metadataBase: new URL("https://www.scrapex.site"),
   title: "ScrapeX — Web data, ready to use",
   description,
   openGraph: { title: "ScrapeX", description, type: "website" },
