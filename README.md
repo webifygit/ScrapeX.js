@@ -47,3 +47,25 @@ npm run format     # prettier
 ## Forms
 
 The quote and removal forms validate with zod on the client and show a success state. They do not send anything yet; wire `SimpleForm`'s `onSubmit` to a Server Action or API route when a backend exists.
+
+## Deploy (Ubuntu server, nginx + PM2)
+
+The site runs as a Node process on port 3100 behind nginx. Everything needed is in `deploy/`.
+
+First time on the server:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/webifygit/ScrapeX.js/main/deploy/deploy.sh | bash
+sudo cp /var/www/scrapex.site/deploy/nginx/scrapex.site.conf /etc/nginx/sites-available/scrapex.site
+sudo ln -s /etc/nginx/sites-available/scrapex.site /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d scrapex.site -d www.scrapex.site
+```
+
+Every later update, after pushing to `main`:
+
+```sh
+bash /var/www/scrapex.site/deploy/deploy.sh
+```
+
+`deploy.sh` installs Node 22 and PM2 if missing, clones or fast-forwards the repo, runs `npm ci` and `npm run build`, and restarts the `scrapex` PM2 process.
