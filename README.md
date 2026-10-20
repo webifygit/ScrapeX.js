@@ -1,0 +1,49 @@
+# ScrapeX — scrapex.site
+
+Marketing site for ScrapeX, a custom web-scraping service. Minimalist, professional and playful: paper background, ink text, lime accents, Syne display type, framer-motion micro-animations.
+
+Built with Next.js (App Router), React 19, Tailwind CSS v4 and framer-motion. Ported from the original Lovable / TanStack Start project.
+
+## Run it
+
+```sh
+npm install
+npm run dev        # http://localhost:3000
+```
+
+Other scripts:
+
+```sh
+npm run build      # production build
+npm start          # serve the production build
+npm run lint       # eslint
+npm run typecheck  # tsc --noEmit
+npm test           # vitest (jsdom)
+npm run format     # prettier
+```
+
+## Pages
+
+| Route           | File                                     |
+| --------------- | ---------------------------------------- |
+| `/`             | `src/app/(site)/page.tsx`                |
+| `/services`     | `src/app/(site)/services/page.tsx`       |
+| `/case-studies` | `src/app/(site)/case-studies/page.tsx`   |
+| `/quote`        | `src/app/(site)/quote/page.tsx`          |
+| `/trust`        | `src/app/(site)/trust/page.tsx`          |
+| `/remove`       | `src/app/(site)/remove/page.tsx`         |
+| `/privacy`      | `src/app/(site)/privacy/page.tsx`        |
+| `/terms`        | `src/app/(site)/terms/page.tsx`          |
+
+`src/app/(site)/layout.tsx` wraps every page in the shared header, footer and cursor (`SiteShell`). `src/app/not-found.tsx` and `src/app/error.tsx` render outside that shell.
+
+## Structure
+
+- `src/app/layout.tsx` — root layout: self-hosted Google fonts via `next/font`, default metadata, `globals.css`.
+- `src/app/globals.css` — Tailwind v4 theme tokens (oklch), base styles, `label-mono` and `grid-bg` utilities.
+- `src/components/site/` — site chrome and primitives (`Layout.tsx`), home page (`Home.tsx`), mock UIs (`Mocks.tsx`), looping visuals (`Motion.tsx`), forms (`SimpleForm.tsx`, `QuoteForm.tsx`, `RemoveForm.tsx`, `forms.ts`) and fictional sample rows (`sample-data.ts`).
+- `src/components/ui/` — shadcn/ui components (only `accordion` is used; add more with `npx shadcn@latest add <name>`).
+
+## Forms
+
+The quote and removal forms validate with zod on the client and show a success state. They do not send anything yet; wire `SimpleForm`'s `onSubmit` to a Server Action or API route when a backend exists.

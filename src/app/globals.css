@@ -1,0 +1,119 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-display: var(--font-syne), "Syne", sans-serif;
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", sans-serif;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ink: var(--navy);
+  --color-ink-foreground: var(--navy-foreground);
+  --color-lime: var(--orange);
+  --color-lime-foreground: var(--navy);
+  --color-paper: var(--background);
+  --color-surface: var(--muted);
+  --color-navy: var(--navy);
+  --color-navy-foreground: var(--navy-foreground);
+  --color-navy-muted: var(--navy-muted);
+  --color-navy-line: var(--navy-line);
+  --color-orange: var(--orange);
+  --color-burnt: var(--burnt);
+  --color-burnt-foreground: var(--burnt-foreground);
+  --color-confirmed: var(--confirmed);
+  --color-confirmed-tint: var(--confirmed-tint);
+  --color-inferred: var(--inferred);
+  --color-inferred-tint: var(--inferred-tint);
+}
+
+:root {
+  --radius: 1.25rem;
+  --navy: oklch(0.15 0 0);
+  --navy-foreground: oklch(0.966 0.008 85);
+  --navy-muted: oklch(0.75 0.01 85);
+  --navy-line: oklch(0.3 0 0);
+  --orange: oklch(0.93 0.22 128);
+  --burnt: oklch(0.93 0.22 128);
+  --burnt-foreground: oklch(0.15 0 0);
+  --confirmed: #2e7d5b;
+  --confirmed-tint: #e3f1ea;
+  --inferred: #8a5a00;
+  --inferred-tint: #fbefd6;
+  --background: oklch(0.966 0.008 85);
+  --foreground: oklch(0.15 0 0);
+  --card: oklch(0.985 0.005 85);
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(0.985 0.005 85);
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.15 0 0);
+  --primary-foreground: oklch(0.966 0.008 85);
+  --secondary: oklch(0.92 0.012 80);
+  --secondary-foreground: oklch(0.15 0 0);
+  --muted: oklch(0.92 0.012 80);
+  --muted-foreground: oklch(0.45 0.01 80);
+  --accent: oklch(0.93 0.22 128);
+  --accent-foreground: oklch(0.15 0 0);
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  --border: oklch(0.15 0 0 / 14%);
+  --input: oklch(0.15 0 0 / 20%);
+  --ring: oklch(0.15 0 0);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
+  ::selection { background: var(--orange); color: var(--navy); }
+  h1, h2, h3 { letter-spacing: -0.03em; }
+}
+
+@utility label-mono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+@utility grid-bg {
+  background-image:
+    linear-gradient(to right, oklch(0.15 0 0 / 6%) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.15 0 0 / 6%) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
