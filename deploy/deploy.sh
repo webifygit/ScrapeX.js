@@ -8,6 +8,12 @@ REPO="https://github.com/webifygit/ScrapeX.js.git"
 APP_DIR="${APP_DIR:-/var/www/scrapex.site}"
 BRANCH="${BRANCH:-main}"
 
+# The droplet has Node via nvm (not on PATH in non-interactive shells); load it first.
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  # shellcheck disable=SC1091
+  . "$HOME/.nvm/nvm.sh"
+fi
+
 if ! command -v node >/dev/null 2>&1 || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 20 ]; then
   echo "Installing Node.js 22 (Next.js needs Node 20.9 or newer)..."
   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
