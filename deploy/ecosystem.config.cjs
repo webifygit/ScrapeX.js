@@ -6,9 +6,10 @@ module.exports = {
       name: "scrapex",
       cwd: __dirname + "/..",
       script: "node_modules/next/dist/bin/next",
-      args: "start -p 3300",
+      // Loopback only: nginx is the public entry point.
+      args: "start -p 3300 -H 127.0.0.1",
+      exec_mode: "fork",
       env: { NODE_ENV: "production", PORT: "3300" },
-      instances: 1,
       autorestart: true,
       max_memory_restart: "400M",
     },
