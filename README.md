@@ -50,7 +50,7 @@ The quote and removal forms validate with zod on the client and show a success s
 
 ## Deploy (Ubuntu server, nginx + PM2)
 
-The site runs as a Node process on port 3100 behind nginx. Everything needed is in `deploy/`.
+The site runs as a Node process on port 3300 behind nginx. Everything needed is in `deploy/`.
 
 First time on the server:
 

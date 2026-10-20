@@ -38,5 +38,5 @@ pm2 save
 pm2 startup systemd -u "$USER" --hp "$HOME" >/dev/null 2>&1 || true
 
 echo
-echo "Deployed. Next.js is listening on 127.0.0.1:3100."
+echo "Deployed. Next.js is listening on 127.0.0.1:3300."
 echo "If nginx is not set up yet, see deploy/nginx/scrapex.site.conf."
