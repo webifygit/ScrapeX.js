@@ -12,3 +12,7 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+# Internal: the demo lead log, password protected.
+Disallow: /leads
+Disallow: /api/

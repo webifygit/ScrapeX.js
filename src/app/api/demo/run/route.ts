@@ -1,12 +1,13 @@
+import { enrichByEmail } from "@/lib/demo/apollo";
 import { crawl } from "@/lib/demo/crawl";
-import { recordLead } from "@/lib/demo/leads";
-import { json, sessionFromCookie } from "@/lib/demo/request";
+import { recordLead, summaryFields } from "@/lib/demo/leads";
+import { json, sessionFromCookie, visitor } from "@/lib/demo/request";
 import { DEMO_CONTACT_LIMIT } from "@/lib/demo/schema";
 import { hitLimit, putSession } from "@/lib/demo/store";
 import type { Contact, RunEvent } from "@/lib/demo/types";
 export const maxDuration = 120;
 
-export async function POST() {
+export async function POST(request: Request) {
   const session = await sessionFromCookie();
   if (!session) return json({ error: "Your demo session has expired. Start again." }, 410);
   if (!session.verified) return json({ error: "Verify the code first." }, 403);
@@ -22,6 +23,7 @@ export async function POST() {
   session.summary = null;
   putSession(session);
 
+  const who = visitor(request);
   const encoder = new TextEncoder();
   const contacts: Contact[] = [];
 
@@ -43,19 +45,49 @@ export async function POST() {
           if (event.type === "contact") contacts.push(event.contact);
           emit(event);
         });
+        // Apollo runs once, after the crawl: one lookup for the whole run, and
+        // a failure here only costs the extra detail, never the contacts.
+        const emails = contacts.filter((c) => c.type === "email").map((c) => c.value);
+        const enrichments = await enrichByEmail(emails);
+        if (enrichments.size > 0) {
+          for (const contact of contacts) {
+            const found = enrichments.get(contact.value.toLowerCase());
+            if (!found) continue;
+            contact.name = found.name || contact.name;
+            contact.title = found.title;
+            contact.company = found.company;
+            contact.linkedin = found.linkedin;
+            contact.location = found.location;
+            contact.enriched = true;
+          }
+          emit({ type: "enriched", contacts, matched: enrichments.size });
+        }
+        summary.enriched = enrichments.size;
+
         session.contacts = contacts;
         session.summary = summary;
         emit({ type: "done", summary });
         await recordLead({
+          event: "completed",
+          session: session.id,
           email: session.email,
           whatsapp: session.whatsapp,
           url: session.url,
-          ip: session.ip,
-          summary,
+          ...who,
+          ...summaryFields(summary),
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : "The scrape could not start";
         emit({ type: "error", message });
+        await recordLead({
+          event: "failed",
+          session: session.id,
+          email: session.email,
+          whatsapp: session.whatsapp,
+          url: session.url,
+          ...who,
+          error: message,
+        });
       } finally {
         session.running = false;
         putSession(session);

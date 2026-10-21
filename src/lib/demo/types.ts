@@ -8,6 +8,12 @@ export type Contact = {
   sourceUrl: string;
   sourceTitle: string;
   foundAt: string;
+  /** Filled in by Apollo when it recognises the address. */
+  title?: string;
+  company?: string;
+  linkedin?: string;
+  location?: string;
+  enriched?: boolean;
 };
 
 export type RunSummary = {
@@ -19,6 +25,7 @@ export type RunSummary = {
   ms: number;
   robotsBlocked: number;
   failed: number;
+  enriched: number;
   finishedAt: string;
 };
 
@@ -28,5 +35,6 @@ export type RunEvent =
   | { type: "page"; url: string; title: string; pagesScanned: number }
   | { type: "contact"; contact: Contact; index: number }
   | { type: "skip"; url: string; reason: string }
+  | { type: "enriched"; contacts: Contact[]; matched: number }
   | { type: "done"; summary: RunSummary }
   | { type: "error"; message: string };

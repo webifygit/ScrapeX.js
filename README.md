@@ -70,9 +70,21 @@ What makes it safe to leave open on a public site:
 - **robots.txt first.** The crawler reads the site's rules before its first request and skips whatever they disallow, at the crawl delay they ask for.
 - **Bounded.** 10 contacts, at most 20 pages, one request at a time, 8s per request, 1.5 MB per page, 75s per run. It also gives up after 8 pages without a new contact, so a site with none finishes in seconds rather than crawling to the cap.
 - **Rate limited.** Six codes per IP per hour, five per address per day, three runs per address per day.
-- **Verified leads only.** A run is appended to `data/demo-leads.jsonl` (gitignored) once the address is verified, and emailed to `DEMO_LEADS_EMAIL` if that is set.
+- **Every step is recorded.** Each visitor's address, number, target, IP and browser are appended to `data/demo-leads.jsonl` (gitignored) at every step — code requested, resent, verified, completed, failed — so someone who abandons at the code screen is still a lead. A completed run is also emailed to `DEMO_LEADS_EMAIL` if that is set.
 
 Sessions live in memory in the single PM2 process, so a deploy drops any codes in flight — ten minutes of inconvenience at worst, and the reason this does not need a database yet.
+
+### Reading the leads
+
+`/leads` shows every recorded step, newest first, with a CSV download. It is behind HTTP Basic auth: any username, and `LEADS_PASSWORD` as the password. Without that variable the page answers 503 rather than opening up. It is excluded in `robots.txt` and sends `X-Robots-Tag: noindex`.
+
+Values written by visitors are escaped before they reach the page — the log is the one place on the site where a stranger's text is rendered back.
+
+### Enrichment
+
+When `APOLLO_API_KEY` is set, a finished run makes one call to Apollo's bulk people-match endpoint for the addresses it scraped, and fills in each contact's name, job title, company, LinkedIn and location. It never asks Apollo to reveal an address or a phone number — the scraper already found those, so the lookup stays cheap.
+
+Enrichment is strictly additive: no key, a plan without API access, a refusal or a timeout all leave the scraped contacts exactly as they were. Rows Apollo recognised are marked in the UI and carry the extra columns into every download.
 
 ### Demo environment
 

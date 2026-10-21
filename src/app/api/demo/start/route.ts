@@ -3,7 +3,8 @@ import { cookies } from "next/headers";
 import { checkUrlReachable } from "@/lib/demo/net-guard";
 import { mailerConfigured, sendOtpEmail } from "@/lib/demo/mailer";
 import { hashOtp, maskEmail, newOtp } from "@/lib/demo/otp";
-import { clientIp, json, SESSION_COOKIE } from "@/lib/demo/request";
+import { recordLead } from "@/lib/demo/leads";
+import { clientIp, json, SESSION_COOKIE, visitor } from "@/lib/demo/request";
 import { demoStartSchema, OTP_RESEND_COOLDOWN_MS, OTP_TTL_MS } from "@/lib/demo/schema";
 import { getSession, hitLimit, putSession } from "@/lib/demo/store";
 
@@ -91,6 +92,15 @@ export async function POST(request: Request) {
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 60 * 60,
+  });
+
+  await recordLead({
+    event: existing ? "code_resent" : "code_requested",
+    session: id,
+    email,
+    whatsapp: whatsapp ?? "",
+    url: reachable.url.toString(),
+    ...visitor(request),
   });
 
   return json({

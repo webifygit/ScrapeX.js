@@ -14,6 +14,15 @@ export async function sessionFromCookie(): Promise<DemoSession | null> {
   return getSession(jar.get(SESSION_COOKIE)?.value);
 }
 
+/** Who the visitor appears to be, for the lead record. */
+export function visitor(request: Request) {
+  return {
+    ip: clientIp(request),
+    userAgent: (request.headers.get("user-agent") ?? "").slice(0, 300),
+    referer: (request.headers.get("referer") ?? "").slice(0, 300),
+  };
+}
+
 export function json(body: unknown, status = 200) {
   return Response.json(body, { status, headers: { "cache-control": "no-store" } });
 }

@@ -214,6 +214,7 @@ export async function crawl(
     ms: Date.now() - started,
     robotsBlocked,
     failed,
+    enriched: 0,
     finishedAt: new Date().toISOString(),
   };
 }

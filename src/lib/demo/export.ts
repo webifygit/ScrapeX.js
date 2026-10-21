@@ -10,6 +10,10 @@ export const columns = [
   { key: "type", label: "Type", width: 10 },
   { key: "value", label: "Contact", width: 34 },
   { key: "name", label: "Name", width: 22 },
+  { key: "title", label: "Job title", width: 28 },
+  { key: "company", label: "Company", width: 26 },
+  { key: "linkedin", label: "LinkedIn", width: 40 },
+  { key: "location", label: "Location", width: 24 },
   { key: "sourceTitle", label: "Page title", width: 38 },
   { key: "sourceUrl", label: "Source page", width: 52 },
   { key: "context", label: "Found in", width: 60 },
@@ -22,6 +26,10 @@ function rowFor(contact: Contact, index: number): SheetCell[] {
     contact.type,
     contact.value,
     contact.name,
+    contact.title ?? "",
+    contact.company ?? "",
+    contact.linkedin ?? "",
+    contact.location ?? "",
     contact.sourceTitle,
     contact.sourceUrl,
     contact.context,
@@ -54,7 +62,7 @@ export function toJson(contacts: Contact[], summary: RunSummary | null) {
 }
 
 export function toMarkdown(contacts: Contact[], summary: RunSummary | null) {
-  const shown = ["index", "type", "value", "name", "sourceUrl"] as const;
+  const shown = ["index", "type", "value", "name", "title", "company", "sourceUrl"] as const;
   const picked = columns.filter((c) => (shown as readonly string[]).includes(c.key));
   const cell = (value: SheetCell) =>
     String(value ?? "")

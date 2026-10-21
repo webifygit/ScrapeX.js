@@ -522,7 +522,8 @@ function Results({
               {summary &&
                 summary.robotsBlocked > 0 &&
                 `, ${summary.robotsBlocked} skipped by robots.txt`}
-              . The demo stops at {DEMO_CONTACT_LIMIT} contacts.
+              {summary && summary.enriched > 0 && `, ${summary.enriched} matched to a person`}. The
+              demo stops at {DEMO_CONTACT_LIMIT} contacts.
             </p>
           </div>
         )}
@@ -640,7 +641,27 @@ function ContactTable({ contacts, reduce }: { contacts: Contact[]; reduce: boole
           >
             <div className="min-w-0">
               <p className="truncate font-mono text-sm font-semibold">{contact.value}</p>
-              {contact.name && <p className="truncate text-sm">{contact.name}</p>}
+              {(contact.name || contact.title || contact.company) && (
+                <p className="truncate text-sm">
+                  {contact.name && <span className="font-medium">{contact.name}</span>}
+                  {contact.title && (
+                    <span className="text-muted-foreground"> · {contact.title}</span>
+                  )}
+                  {contact.company && (
+                    <span className="text-muted-foreground"> · {contact.company}</span>
+                  )}
+                  {contact.linkedin && (
+                    <a
+                      href={contact.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="ml-2 underline decoration-lime decoration-2 underline-offset-2"
+                    >
+                      LinkedIn
+                    </a>
+                  )}
+                </p>
+              )}
               <a
                 href={contact.sourceUrl}
                 target="_blank"
@@ -655,8 +676,18 @@ function ContactTable({ contacts, reduce }: { contacts: Contact[]; reduce: boole
                 </p>
               )}
             </div>
-            <span className="label-mono shrink-0 rounded-md bg-muted px-2 py-0.5 text-muted-foreground">
-              {contact.type}
+            <span className="flex shrink-0 items-center gap-1.5">
+              {contact.enriched && (
+                <span
+                  className="label-mono rounded-md bg-lime px-2 py-0.5 text-ink"
+                  title="Matched to a person by Apollo"
+                >
+                  enriched
+                </span>
+              )}
+              <span className="label-mono rounded-md bg-muted px-2 py-0.5 text-muted-foreground">
+                {contact.type}
+              </span>
             </span>
           </motion.li>
         ))}

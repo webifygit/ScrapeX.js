@@ -93,9 +93,11 @@ jobs:
           DEMO_FROM_EMAIL: ${{ secrets.DEMO_FROM_EMAIL }}
           DEMO_LEADS_EMAIL: ${{ secrets.DEMO_LEADS_EMAIL }}
           DEMO_OTP_SECRET: ${{ secrets.DEMO_OTP_SECRET }}
+          LEADS_PASSWORD: ${{ secrets.LEADS_PASSWORD }}
+          APOLLO_API_KEY: ${{ secrets.APOLLO_API_KEY }}
         run: |
           : > env.local
-          for name in RESEND_API_KEY DEMO_FROM_EMAIL DEMO_LEADS_EMAIL DEMO_OTP_SECRET; do
+          for name in RESEND_API_KEY DEMO_FROM_EMAIL DEMO_LEADS_EMAIL DEMO_OTP_SECRET LEADS_PASSWORD APOLLO_API_KEY; do
             value="${!name}"
             if [ -n "$value" ]; then printf '%s=%s\n' "$name" "$value" >> env.local; fi
           done

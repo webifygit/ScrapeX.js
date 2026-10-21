@@ -256,13 +256,15 @@ describe("exports", () => {
 
   it("escapes quotes, commas and newlines in CSV", () => {
     const csv = toCsv(contacts);
-    expect(csv.startsWith("\uFEFF#,Type,Contact,Name")).toBe(true);
+    expect(csv.startsWith("\uFEFF#,Type,Contact,Name,Job title,Company,LinkedIn,Location")).toBe(
+      true,
+    );
     expect(csv).toContain('"Jordan Reyes, ""AV Services"", email\nJordan"');
   });
 
   it("writes a markdown table", () => {
     const md = toMarkdown(contacts, null);
-    expect(md).toContain("| # | Type | Contact | Name | Source page |");
+    expect(md).toContain("| # | Type | Contact | Name | Job title | Company | Source page |");
     expect(md).toContain("j.reyes@example-store.com");
   });
 

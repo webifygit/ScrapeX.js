@@ -1,5 +1,6 @@
 import { otpMatches } from "@/lib/demo/otp";
-import { json, sessionFromCookie } from "@/lib/demo/request";
+import { recordLead } from "@/lib/demo/leads";
+import { json, sessionFromCookie, visitor } from "@/lib/demo/request";
 import { DEMO_CONTACT_LIMIT, demoVerifySchema, OTP_MAX_ATTEMPTS } from "@/lib/demo/schema";
 import { dropSession, putSession } from "@/lib/demo/store";
 
@@ -41,6 +42,15 @@ export async function POST(request: Request) {
   session.verified = true;
   session.attempts = 0;
   putSession(session);
+
+  await recordLead({
+    event: "verified",
+    session: session.id,
+    email: session.email,
+    whatsapp: session.whatsapp,
+    url: session.url,
+    ...visitor(request),
+  });
 
   return json({ ok: true, url: session.url, limit: DEMO_CONTACT_LIMIT });
 }
