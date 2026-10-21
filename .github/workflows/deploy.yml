@@ -35,9 +35,13 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
+
+      # The build has to come first: next generates the route types that
+      # tsconfig pulls in from .next/types (LayoutProps, PageProps), and a
+      # clean checkout has none, so `tsc --noEmit` cannot resolve them.
+      - run: npm run build
       - run: npm run typecheck
       - run: npm test
-      - run: npm run build
 
   deploy:
     name: Deploy to scrapex.site
