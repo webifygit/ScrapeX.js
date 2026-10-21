@@ -2,11 +2,16 @@
 # First deploy and every later update of scrapex.site on the Ubuntu server.
 # Usage (on the server):  bash deploy/deploy.sh
 # Safe to re-run: it pulls, installs, builds, then restarts the PM2 process.
+#
+# Env: APP_DIR (/var/www/scrapex.site), BRANCH (main) and REF — an exact commit
+# to check out instead of the branch tip, which is what GitHub Actions passes so
+# a deploy lands the commit that was tested, even if main has moved on since.
 set -euo pipefail
 
 REPO="https://github.com/webifygit/ScrapeX.js.git"
 APP_DIR="${APP_DIR:-/var/www/scrapex.site}"
 BRANCH="${BRANCH:-main}"
+REF="${REF:-}"
 
 # The droplet has Node via nvm (not on PATH in non-interactive shells); load it first.
 if [ -s "$HOME/.nvm/nvm.sh" ]; then
@@ -34,7 +39,8 @@ fi
 
 cd "$APP_DIR"
 git fetch origin "$BRANCH"
-git reset --hard "origin/$BRANCH"
+git reset --hard "${REF:-origin/$BRANCH}"
+git --no-pager log -1 --format="Deploying %h %s"
 
 npm ci
 npm run build

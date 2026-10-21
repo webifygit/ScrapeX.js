@@ -1,0 +1,116 @@
+# Checks every push and pull request; deploys main to scrapex.site when they pass.
+#
+# The droplet runs the site under PM2 behind nginx (see deploy/). This workflow
+# pipes deploy/deploy.sh from the commit being deployed over SSH and runs it
+# there, pinned to this exact commit, then checks the live pages answer 200.
+#
+# Repository secrets it needs: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY and
+# DEPLOY_KNOWN_HOSTS. Without them the deploy job warns and skips, so the
+# checks still run. Optional variables: DEPLOY_PORT (22), DEPLOY_PATH
+# (/var/www/scrapex.site), SITE_URL (https://www.scrapex.site).
+
+name: CI & deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, types, tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  deploy:
+    name: Deploy to scrapex.site
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/var/www/scrapex.site' }}
+      SITE_URL: ${{ vars.SITE_URL || 'https://www.scrapex.site' }}
+      DEPLOY_CONFIGURED: ${{ secrets.DEPLOY_HOST != '' && secrets.DEPLOY_USER != '' && secrets.DEPLOY_SSH_KEY != '' }}
+    steps:
+      - name: Skip when deploy is not configured
+        if: env.DEPLOY_CONFIGURED != 'true'
+        run: |
+          echo "::warning title=Deploy skipped::Set the DEPLOY_HOST, DEPLOY_USER and DEPLOY_SSH_KEY repository secrets to deploy automatically."
+
+      - uses: actions/checkout@v7
+        if: env.DEPLOY_CONFIGURED == 'true'
+
+      - name: Load the SSH key
+        if: env.DEPLOY_CONFIGURED == 'true'
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            echo "::warning title=Host key not pinned::DEPLOY_KNOWN_HOSTS is unset; trusting the key the server presents now."
+            ssh-keyscan -T 10 -p "$DEPLOY_PORT" "$DEPLOY_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Run deploy.sh on the droplet
+        if: env.DEPLOY_CONFIGURED == 'true'
+        env:
+          GIT_BRANCH: ${{ github.ref_name }}
+          GIT_REF: ${{ github.sha }}
+        run: |
+          ssh -p "$DEPLOY_PORT" -o BatchMode=yes -o ConnectTimeout=20 \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "APP_DIR='$DEPLOY_PATH' BRANCH='$GIT_BRANCH' REF='$GIT_REF' bash -s" \
+            < deploy/deploy.sh
+
+      - name: Check the live pages
+        if: env.DEPLOY_CONFIGURED == 'true'
+        run: |
+          failed=0
+          for path in / /services /case-studies /quote /trust /remove /privacy /terms; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' \
+              --retry 5 --retry-delay 3 --retry-all-errors --max-time 30 \
+              "$SITE_URL$path" || echo 000)
+            printf '%-14s %s\n' "$path" "$code"
+            [ "$code" = "200" ] || failed=1
+          done
+          [ "$failed" = "0" ] || { echo "::error title=Smoke check failed::A page did not answer 200 after the deploy."; exit 1; }
+
+      - name: Summary
+        if: env.DEPLOY_CONFIGURED == 'true'
+        env:
+          COMMIT_SUBJECT: ${{ github.event.head_commit.message || github.sha }}
+        run: |
+          {
+            echo "### Deployed to [$SITE_URL]($SITE_URL)"
+            echo
+            echo "Commit \`${GITHUB_SHA:0:7}\` — $(printf '%s' "$COMMIT_SUBJECT" | head -1)"
+          } >> "$GITHUB_STEP_SUMMARY"

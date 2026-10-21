@@ -24,16 +24,16 @@ npm run format     # prettier
 
 ## Pages
 
-| Route           | File                                     |
-| --------------- | ---------------------------------------- |
-| `/`             | `src/app/(site)/page.tsx`                |
-| `/services`     | `src/app/(site)/services/page.tsx`       |
-| `/case-studies` | `src/app/(site)/case-studies/page.tsx`   |
-| `/quote`        | `src/app/(site)/quote/page.tsx`          |
-| `/trust`        | `src/app/(site)/trust/page.tsx`          |
-| `/remove`       | `src/app/(site)/remove/page.tsx`         |
-| `/privacy`      | `src/app/(site)/privacy/page.tsx`        |
-| `/terms`        | `src/app/(site)/terms/page.tsx`          |
+| Route           | File                                   |
+| --------------- | -------------------------------------- |
+| `/`             | `src/app/(site)/page.tsx`              |
+| `/services`     | `src/app/(site)/services/page.tsx`     |
+| `/case-studies` | `src/app/(site)/case-studies/page.tsx` |
+| `/quote`        | `src/app/(site)/quote/page.tsx`        |
+| `/trust`        | `src/app/(site)/trust/page.tsx`        |
+| `/remove`       | `src/app/(site)/remove/page.tsx`       |
+| `/privacy`      | `src/app/(site)/privacy/page.tsx`      |
+| `/terms`        | `src/app/(site)/terms/page.tsx`        |
 
 `src/app/(site)/layout.tsx` wraps every page in the shared header, footer and cursor (`SiteShell`). `src/app/not-found.tsx` and `src/app/error.tsx` render outside that shell.
 
@@ -67,7 +67,24 @@ sudo ln -sf /etc/nginx/sites-available/scrapex.site /etc/nginx/sites-enabled/scr
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Every later update, after pushing to `main`:
+`deploy.sh` installs Node 22 and PM2 if missing, clones or fast-forwards the repo, runs `npm ci` and `npm run build`, and restarts the `scrapex` PM2 process. It does not touch nginx: after changing `deploy/nginx/scrapex.site.conf`, repeat step 3.
+
+### Continuous deployment
+
+Pushing to `main` is the deploy. `.github/workflows/deploy.yml` runs lint, typecheck, tests and a production build; if they pass it opens SSH to the droplet, pipes this repo's `deploy/deploy.sh` to it pinned to the pushed commit, and then checks every page answers 200. A failing check means nothing ships. Pull requests run the checks only.
+
+The deploy job reads four repository secrets:
+
+| Secret               | Value                                                                      |
+| -------------------- | -------------------------------------------------------------------------- |
+| `DEPLOY_HOST`        | the droplet's address                                                      |
+| `DEPLOY_USER`        | the SSH user `deploy.sh` runs as                                           |
+| `DEPLOY_SSH_KEY`     | private half of a key in that user's `~/.ssh/authorized_keys`              |
+| `DEPLOY_KNOWN_HOSTS` | the droplet's public host keys, so the runner verifies what it connects to |
+
+Optional repository variables override the defaults: `DEPLOY_PORT` (22), `DEPLOY_PATH` (`/var/www/scrapex.site`), `SITE_URL` (`https://www.scrapex.site`). With the secrets unset the deploy job warns and skips instead of failing.
+
+To deploy by hand — the same script the pipeline runs — use **Actions → CI & deploy → Run workflow**, or:
 
 ```sh
 # on the server
@@ -75,5 +92,3 @@ bash /var/www/scrapex.site/deploy/deploy.sh
 # or from this folder on your machine
 ssh root@<server> 'bash -s' < deploy/deploy.sh
 ```
-
-`deploy.sh` installs Node 22 and PM2 if missing, clones or fast-forwards the repo, runs `npm ci` and `npm run build`, and restarts the `scrapex` PM2 process. It does not touch nginx: after changing `deploy/nginx/scrapex.site.conf`, repeat step 3.
