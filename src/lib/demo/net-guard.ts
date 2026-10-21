@@ -21,16 +21,20 @@ function parseIpv4(value: string): number[] | null {
   return octets.some((n) => n < 0) ? null : octets;
 }
 
-function privateIpv4([a, b]: number[]) {
+// Each reserved block is matched at its real size. Widening one to a whole /16
+// would lock out ordinary public space: 192.0.43.8 (iana.org) is a neighbour of
+// the 192.0.2.0/24 documentation range and must still be reachable.
+function privateIpv4([a, b, c]: number[]) {
   if (a === 0 || a === 10 || a === 127) return true;
   if (a === 169 && b === 254) return true; // link-local, incl. cloud metadata
   if (a === 172 && b >= 16 && b <= 31) return true;
   if (a === 192 && b === 168) return true;
   if (a === 100 && b >= 64 && b <= 127) return true; // carrier NAT
-  if (a === 192 && b === 0) return true; // 192.0.0.0/24 and the 192.0.2.0/24 doc range
+  if (a === 192 && b === 0 && (c === 0 || c === 2)) return true; // protocol assignments, TEST-NET-1
+  if (a === 192 && b === 88 && c === 99) return true; // deprecated 6to4 relay anycast
   if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
-  if (a === 198 && b === 51) return true; // 198.51.100.0/24 doc range
-  if (a === 203 && b === 0) return true; // 203.0.113.0/24 doc range
+  if (a === 198 && b === 51 && c === 100) return true; // TEST-NET-2
+  if (a === 203 && b === 0 && c === 113) return true; // TEST-NET-3
   if (a >= 224) return true; // multicast and everything reserved above it
   return false;
 }

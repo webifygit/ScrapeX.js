@@ -90,6 +90,20 @@ describe("ssrf guard", () => {
     }
   });
 
+  it("blocks reserved ranges at their real size, not the whole /16", () => {
+    // Reserved
+    expect(isPrivateAddress("192.0.0.1")).toBe(true);
+    expect(isPrivateAddress("192.0.2.5")).toBe(true);
+    expect(isPrivateAddress("198.51.100.5")).toBe(true);
+    expect(isPrivateAddress("203.0.113.5")).toBe(true);
+    expect(isPrivateAddress("192.88.99.1")).toBe(true);
+    // Public neighbours of those blocks
+    expect(isPrivateAddress("192.0.43.8")).toBe(false); // iana.org
+    expect(isPrivateAddress("198.51.99.1")).toBe(false);
+    expect(isPrivateAddress("203.0.114.1")).toBe(false);
+    expect(isPrivateAddress("192.88.98.1")).toBe(false);
+  });
+
   it("blocks loopback hosts, odd ports, credentials and non-web schemes", () => {
     expect(checkUrlShape("http://localhost/admin").ok).toBe(false);
     expect(checkUrlShape("http://127.0.0.1/").ok).toBe(false);
