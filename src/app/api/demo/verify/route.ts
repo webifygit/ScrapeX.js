@@ -1,6 +1,6 @@
 import { otpMatches } from "@/lib/demo/otp";
 import { json, sessionFromCookie } from "@/lib/demo/request";
-import { demoVerifySchema, DEMO_PAGE_LIMIT, OTP_MAX_ATTEMPTS } from "@/lib/demo/schema";
+import { DEMO_CONTACT_LIMIT, demoVerifySchema, OTP_MAX_ATTEMPTS } from "@/lib/demo/schema";
 import { dropSession, putSession } from "@/lib/demo/store";
 
 export async function POST(request: Request) {
@@ -42,5 +42,5 @@ export async function POST(request: Request) {
   session.attempts = 0;
   putSession(session);
 
-  return json({ ok: true, url: session.url, limit: DEMO_PAGE_LIMIT });
+  return json({ ok: true, url: session.url, limit: DEMO_CONTACT_LIMIT });
 }

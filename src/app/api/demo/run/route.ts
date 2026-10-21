@@ -1,9 +1,9 @@
 import { crawl } from "@/lib/demo/crawl";
 import { recordLead } from "@/lib/demo/leads";
 import { json, sessionFromCookie } from "@/lib/demo/request";
-import { DEMO_PAGE_LIMIT } from "@/lib/demo/schema";
+import { DEMO_CONTACT_LIMIT } from "@/lib/demo/schema";
 import { hitLimit, putSession } from "@/lib/demo/store";
-import type { RunEvent, ScrapedPage } from "@/lib/demo/types";
+import type { Contact, RunEvent } from "@/lib/demo/types";
 export const maxDuration = 120;
 
 export async function POST() {
@@ -18,12 +18,12 @@ export async function POST() {
   }
 
   session.running = true;
-  session.pages = [];
+  session.contacts = [];
   session.summary = null;
   putSession(session);
 
   const encoder = new TextEncoder();
-  const pages: ScrapedPage[] = [];
+  const contacts: Contact[] = [];
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -39,11 +39,11 @@ export async function POST() {
       };
 
       try {
-        const summary = await crawl(session.url, DEMO_PAGE_LIMIT, (event) => {
-          if (event.type === "page") pages.push(event.page);
+        const summary = await crawl(session.url, DEMO_CONTACT_LIMIT, (event) => {
+          if (event.type === "contact") contacts.push(event.contact);
           emit(event);
         });
-        session.pages = pages;
+        session.contacts = contacts;
         session.summary = summary;
         emit({ type: "done", summary });
         await recordLead({

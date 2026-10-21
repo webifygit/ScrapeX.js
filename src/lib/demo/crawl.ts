@@ -1,21 +1,28 @@
-// The demo crawler. Deliberately small and deliberately polite: one request at a
-// time, a page cap, robots.txt honoured, every redirect re-checked against the
-// SSRF guard, and hard limits on time and bytes so one visitor cannot tie up the
-// droplet.
+// The demo crawler. It is hunting for contact details, not pages: it keeps
+// reading until it has the number of contacts the demo allows, then stops.
+// Deliberately polite with it — one request at a time, robots.txt honoured,
+// every redirect re-checked against the SSRF guard, and hard limits on pages,
+// bytes and time so one visitor cannot tie up the droplet.
 
 import { checkUrlReachable } from "./net-guard";
-import { extractPage } from "./extract";
+import { extractContacts, extractPage } from "./extract";
 import { emptyRules, parseRobots, robotsAllows, type RobotsRules } from "./robots";
+import { DEMO_PAGE_SCAN_LIMIT } from "./schema";
 import { cacheRobots, cachedRobots } from "./store";
-import type { RunEvent, RunSummary, ScrapedPage } from "./types";
+import type { Contact, RunEvent, RunSummary } from "./types";
 
 export const USER_AGENT = "ScrapeXDemoBot/1.0 (+https://www.scrapex.site/trust)";
 
 const PAGE_TIMEOUT_MS = 8_000;
 const TOTAL_BUDGET_MS = 75_000;
 const MAX_BYTES = 1_500_000;
-const MIN_DELAY_MS = 400;
+const MIN_DELAY_MS = 300;
+// Stop early on a site that clearly has nothing more to give.
+const BARREN_PAGES = 8;
 const MAX_REDIRECTS = 3;
+
+// Pages that tend to carry the details we are looking for, read first.
+const likelyContactPage = /contact|about|team|staff|people|directory|impressum|support|reach/i;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -104,7 +111,7 @@ function sameSite(a: URL, b: URL) {
 
 export async function crawl(
   rawUrl: string,
-  limit: number,
+  contactLimit: number,
   emit: (event: RunEvent) => void,
 ): Promise<RunSummary> {
   const started = Date.now();
@@ -119,19 +126,24 @@ export async function crawl(
     type: "start",
     startUrl: start.toString(),
     host: start.hostname,
-    limit,
+    limit: contactLimit,
     crawlDelayMs,
   });
 
+  // Two queues so contact and about pages are read before the rest of the site.
+  const priority: string[] = [];
   const queue: string[] = [start.toString()];
   const seen = new Set<string>([start.toString()]);
-  const pages: ScrapedPage[] = [];
+  const contacts: Contact[] = [];
+  let pagesScanned = 0;
   let robotsBlocked = 0;
   let failed = 0;
+  let pagesSinceLastContact = 0;
 
-  while (queue.length > 0 && pages.length < limit) {
-    if (Date.now() - started > TOTAL_BUDGET_MS) break;
-    const next = queue.shift() as string;
+  while (priority.length + queue.length > 0 && contacts.length < contactLimit) {
+    if (Date.now() - started > TOTAL_BUDGET_MS || pagesScanned >= DEMO_PAGE_SCAN_LIMIT) break;
+    if (pagesSinceLastContact >= BARREN_PAGES) break;
+    const next = (priority.shift() ?? queue.shift()) as string;
     const url = new URL(next);
 
     if (!robotsAllows(rules, url.pathname + url.search)) {
@@ -140,34 +152,31 @@ export async function crawl(
       continue;
     }
 
-    if (pages.length > 0) await sleep(crawlDelayMs);
+    if (pagesScanned > 0) await sleep(crawlDelayMs);
 
-    const pageStarted = Date.now();
     try {
-      const { status, html, bytes, finalUrl } = await fetchPage(next);
+      const { html, finalUrl } = await fetchPage(next);
       const fields = extractPage(html, finalUrl);
-      const page: ScrapedPage = {
-        url: finalUrl,
-        status,
-        title: fields.title,
-        description: fields.description,
-        heading: fields.heading,
-        price: fields.price,
-        currency: fields.currency,
-        links: fields.links.length,
-        images: fields.images,
-        emails: fields.emails,
-        phones: fields.phones,
-        words: fields.words,
-        bytes,
-        ms: Date.now() - pageStarted,
-        fetchedAt: new Date().toISOString(),
-      };
-      pages.push(page);
-      emit({ type: "page", page, index: pages.length });
+      pagesScanned += 1;
+      pagesSinceLastContact += 1;
+      emit({ type: "page", url: finalUrl, title: fields.title, pagesScanned });
+
+      for (const found of extractContacts(html)) {
+        if (contacts.length >= contactLimit) break;
+        if (contacts.some((c) => c.value.toLowerCase() === found.value.toLowerCase())) continue;
+        const contact: Contact = {
+          ...found,
+          sourceUrl: finalUrl,
+          sourceTitle: fields.title,
+          foundAt: new Date().toISOString(),
+        };
+        contacts.push(contact);
+        pagesSinceLastContact = 0;
+        emit({ type: "contact", contact, index: contacts.length });
+      }
 
       for (const link of fields.links) {
-        if (seen.size >= limit * 12 || queue.length >= limit * 4) break;
+        if (seen.size >= DEMO_PAGE_SCAN_LIMIT * 8) break;
         let candidate: URL;
         try {
           candidate = new URL(link);
@@ -182,7 +191,8 @@ export async function crawl(
         )
           continue;
         seen.add(key);
-        queue.push(key);
+        if (likelyContactPage.test(candidate.pathname)) priority.push(key);
+        else queue.push(key);
       }
     } catch (error) {
       failed += 1;
@@ -198,8 +208,9 @@ export async function crawl(
   return {
     startUrl: start.toString(),
     host: start.hostname,
-    pages: pages.length,
-    limit,
+    contacts: contacts.length,
+    limit: contactLimit,
+    pagesScanned,
     ms: Date.now() - started,
     robotsBlocked,
     failed,

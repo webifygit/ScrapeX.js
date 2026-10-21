@@ -94,155 +94,35 @@ function collapse(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function attributes(tag: string) {
-  const found: Record<string, string> = {};
-  const re = /([a-z][\w:-]*)\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'>]+))/gi;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(tag))) {
-    found[match[1].toLowerCase()] = decodeEntities(match[3] ?? match[4] ?? match[5] ?? "");
-  }
-  return found;
-}
-
-function metaTags(html: string) {
-  return [...html.matchAll(/<meta\b[^>]*>/gi)].map((m) => attributes(m[0]));
-}
-
-function metaContent(metas: Record<string, string>[], keys: string[]) {
-  for (const key of keys) {
-    const hit = metas.find(
-      (m) =>
-        (m.name ?? "").toLowerCase() === key ||
-        (m.property ?? "").toLowerCase() === key ||
-        (m.itemprop ?? "").toLowerCase() === key,
-    );
-    if (hit?.content) return collapse(hit.content);
-  }
-  return "";
-}
-
-/** Walks parsed JSON-LD looking for the first price-shaped value. */
-function priceFromJsonLd(html: string): { price: string; currency: string } {
-  const blocks = [
-    ...html.matchAll(
-      /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
-    ),
-  ];
-  for (const block of blocks) {
-    let data: unknown;
-    try {
-      data = JSON.parse(decodeEntities(block[1].trim()));
-    } catch {
-      continue;
-    }
-    const found = walkForPrice(data);
-    if (found) return found;
-  }
-  return { price: "", currency: "" };
-}
-
-function walkForPrice(node: unknown, depth = 0): { price: string; currency: string } | null {
-  if (!node || depth > 6) return null;
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      const found = walkForPrice(item, depth + 1);
-      if (found) return found;
-    }
-    return null;
-  }
-  if (typeof node !== "object") return null;
-
-  const record = node as Record<string, unknown>;
-  const raw = record.price ?? record.lowPrice ?? record.highPrice;
-  if (typeof raw === "string" || typeof raw === "number") {
-    const price = String(raw).trim();
-    if (price) {
-      const currency = record.priceCurrency;
-      return { price, currency: typeof currency === "string" ? currency : "" };
-    }
-  }
-  for (const value of Object.values(record)) {
-    const found = walkForPrice(value, depth + 1);
-    if (found) return found;
-  }
-  return null;
-}
-
 const emailPattern = /\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/gi;
 const phonePattern = /\+\d[\d\s().-]{7,17}\d/g;
 
-export type Extracted = {
-  title: string;
-  description: string;
-  heading: string;
-  canonical: string;
-  price: string;
-  currency: string;
-  images: number;
-  links: string[];
-  emails: string[];
-  phones: string[];
-  words: number;
-};
+export type Extracted = { title: string; links: string[] };
 
+/** The page's title and the links worth following. Contacts come from extractContacts. */
 export function extractPage(html: string, baseUrl: string): Extracted {
-  const metas = metaTags(html);
   const title =
     collapse(decodeEntities(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "")) ||
-    metaContent(metas, ["og:title", "twitter:title"]);
-  const heading = stripTags(html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? "");
-  const description = metaContent(metas, ["description", "og:description", "twitter:description"]);
-
-  const jsonLd = priceFromJsonLd(html);
-  const price =
-    jsonLd.price || metaContent(metas, ["og:price:amount", "product:price:amount", "price"]);
-  const currency =
-    jsonLd.currency ||
-    metaContent(metas, ["og:price:currency", "product:price:currency", "pricecurrency"]);
-
-  const canonicalTag = html.match(/<link\b[^>]*rel=["']?canonical["']?[^>]*>/i)?.[0] ?? "";
-  const canonical = resolve(attributes(canonicalTag).href ?? "", baseUrl);
+    collapse(
+      decodeEntities(
+        html.match(/<meta\b[^>]*property=["']og:title["'][^>]*content=["']([^"']*)["']/i)?.[1] ??
+          "",
+      ),
+    );
 
   const links: string[] = [];
-  const emails = new Set<string>();
   for (const match of html.matchAll(/<a\b[^>]*\bhref\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)[^>]*>/gi)) {
     const href = decodeEntities(match[1].replace(/^["']|["']$/g, "")).trim();
-    if (!href || href.startsWith("#") || href.startsWith("javascript:")) continue;
-    if (href.toLowerCase().startsWith("mailto:")) {
-      const address = href.slice(7).split("?")[0].trim().toLowerCase();
-      if (emailPattern.test(address)) emails.add(address);
-      emailPattern.lastIndex = 0;
-      continue;
-    }
+    if (!href || href.startsWith("#")) continue;
+    if (/^(javascript|mailto|tel|data):/i.test(href)) continue;
     const absolute = resolve(href, baseUrl);
     if (absolute) links.push(absolute);
   }
 
-  const text = stripTags(html);
-  for (const hit of text.matchAll(emailPattern)) emails.add(hit[0].toLowerCase());
-  const phones = new Set<string>();
-  for (const hit of text.matchAll(phonePattern)) phones.add(collapse(hit[0]));
-  for (const match of html.matchAll(/href\s*=\s*["']tel:([^"']+)["']/gi)) {
-    phones.add(collapse(decodeEntities(match[1])));
-  }
-
-  return {
-    title,
-    description,
-    heading,
-    canonical,
-    price,
-    currency,
-    images: [...html.matchAll(/<img\b/gi)].length,
-    links,
-    emails: [...emails].slice(0, 25),
-    phones: [...phones].slice(0, 25),
-    words: text ? text.split(" ").length : 0,
-  };
+  return { title, links };
 }
 
 function resolve(href: string, baseUrl: string) {
-  if (!href) return "";
   try {
     const url = new URL(href, baseUrl);
     if (url.protocol !== "http:" && url.protocol !== "https:") return "";
@@ -251,4 +131,129 @@ function resolve(href: string, baseUrl: string) {
   } catch {
     return "";
   }
+}
+
+// --- contacts -------------------------------------------------------------
+
+// An address-shaped string whose "domain" is really a filename is a sprite or a
+// stylesheet, not a person.
+const fileEndings =
+  /\.(png|jpe?g|gif|webp|svg|css|js|json|html?|php|ico|woff2?|ttf|eot|mp4|webm)$/i;
+
+const genericMailboxes = new Set([
+  "info",
+  "sales",
+  "support",
+  "contact",
+  "hello",
+  "admin",
+  "office",
+  "enquiries",
+  "inquiries",
+  "help",
+  "team",
+  "mail",
+  "press",
+  "careers",
+  "jobs",
+  "hr",
+  "billing",
+  "accounts",
+  "noreply",
+  "no-reply",
+  "donotreply",
+]);
+
+/** j.reyes@acme.com → "J. Reyes". Generic mailboxes get no name. */
+export function nameFromEmail(email: string) {
+  const local = email.slice(0, email.indexOf("@")).toLowerCase();
+  if (genericMailboxes.has(local)) return "";
+  const parts = local.split(/[._-]+/);
+  if (parts.length < 2 || parts.length > 3) return "";
+  if (!parts.every((part) => /^[a-z]+$/.test(part))) return "";
+  if (!parts.some((part) => part.length > 1)) return "";
+  return parts
+    .map((part) =>
+      part.length === 1 ? `${part.toUpperCase()}.` : part[0].toUpperCase() + part.slice(1),
+    )
+    .join(" ");
+}
+
+/** The words around a hit, so a visitor can see where it came from. */
+function contextAround(text: string, value: string) {
+  const at = text.toLowerCase().indexOf(value.toLowerCase());
+  if (at < 0) return "";
+  const from = Math.max(0, at - 60);
+  const snippet = text.slice(from, Math.min(text.length, at + value.length + 60)).trim();
+  return `${from > 0 ? "…" : ""}${snippet}${at + value.length + 60 < text.length ? "…" : ""}`;
+}
+
+/** An anchor's visible words, unless they are just the address repeated back. */
+function linkText(inner: string) {
+  const words = stripTags(inner);
+  if (words.length < 3 || words.length > 120) return "";
+  return /^[^\s@]+@[^\s@]+$/.test(words) || /^\+?[\d\s().-]+$/.test(words) ? "" : words;
+}
+
+export type FoundContact = {
+  type: "email" | "phone";
+  value: string;
+  name: string;
+  context: string;
+};
+
+/** Every email and phone number on the page, de-duplicated, in reading order. */
+export function extractContacts(html: string, text = stripTags(html)): FoundContact[] {
+  const found: FoundContact[] = [];
+  const seen = new Set<string>();
+
+  const addEmail = (raw: string, described = "") => {
+    const value = raw
+      .trim()
+      .toLowerCase()
+      .replace(/^mailto:/, "")
+      .split("?")[0];
+    if (!value || fileEndings.test(value) || value.length > 254) return;
+    if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}$/.test(value)) return;
+    if (seen.has(value)) return;
+    seen.add(value);
+    found.push({
+      type: "email",
+      value,
+      name: nameFromEmail(value),
+      context: described || contextAround(text, value),
+    });
+  };
+
+  const addPhone = (raw: string, described = "") => {
+    const value = raw.replace(/\s+/g, " ").trim();
+    const digits = value.replace(/\D/g, "");
+    if (digits.length < 8 || digits.length > 15) return;
+    const key = `tel:${digits}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    found.push({
+      type: "phone",
+      value,
+      name: "",
+      context: described || contextAround(text, value),
+    });
+  };
+
+  // Linked details come first, and the link's own words describe them better
+  // than the page text around the address ever could.
+  for (const match of html.matchAll(
+    /<a\b[^>]*href\s*=\s*["']mailto:([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+  )) {
+    addEmail(decodeEntities(match[1]), linkText(match[2]));
+  }
+  for (const match of html.matchAll(
+    /<a\b[^>]*href\s*=\s*["']tel:([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+  )) {
+    addPhone(decodeEntities(match[1]), linkText(match[2]));
+  }
+  for (const match of text.matchAll(emailPattern)) addEmail(match[0]);
+  for (const match of text.matchAll(phonePattern)) addPhone(match[0]);
+
+  return found;
 }

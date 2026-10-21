@@ -51,7 +51,9 @@ The quote and removal forms validate with zod on the client and show a success s
 
 ## Live demo
 
-`/demo` lets a visitor point ScrapeX at a public page and watch it work. The flow: enter a URL and a company email (free and throwaway mailboxes are refused), optionally a WhatsApp number, receive a six-digit code by email, enter it, and the crawler runs while the rows stream onto the page. It stops at `DEMO_PAGE_LIMIT` (10) pages, then offers the data as Excel, CSV, JSON or Markdown.
+`/demo` lets a visitor point ScrapeX at a public website and watch it pull out contact details. The flow: enter a URL and a company email (free and throwaway mailboxes are refused), optionally a WhatsApp number, receive a six-digit code by email, enter it, and the crawler reads the site while the contacts stream onto the page. It stops at `DEMO_CONTACT_LIMIT` (10) contacts, then offers them as Excel, CSV, JSON or Markdown.
+
+It looks for email addresses and phone numbers in the markup, takes the name from the address when the address carries one (`j.reyes@` → J. Reyes, but never `sales@`), and keeps the words around each hit so a visitor can see where it came from. Pages whose URL looks like a contact, about or team page are read first.
 
 | Piece                     | File                                                                    |
 | ------------------------- | ----------------------------------------------------------------------- |
@@ -66,7 +68,7 @@ What makes it safe to leave open on a public site:
 
 - **No private targets.** Every URL and every redirect hop is resolved and checked, so loopback, private ranges and the cloud metadata address are refused — see `net-guard.ts`.
 - **robots.txt first.** The crawler reads the site's rules before its first request and skips whatever they disallow, at the crawl delay they ask for.
-- **Bounded.** 10 pages, one request at a time, 8s per request, 1.5 MB per page, 75s per run.
+- **Bounded.** 10 contacts, at most 20 pages, one request at a time, 8s per request, 1.5 MB per page, 75s per run. It also gives up after 8 pages without a new contact, so a site with none finishes in seconds rather than crawling to the cap.
 - **Rate limited.** Six codes per IP per hour, five per address per day, three runs per address per day.
 - **Verified leads only.** A run is appended to `data/demo-leads.jsonl` (gitignored) once the address is verified, and emailed to `DEMO_LEADS_EMAIL` if that is set.
 

@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     verified: false,
     createdAt: now,
     running: false,
-    pages: [],
+    contacts: [],
     summary: null,
   });
 

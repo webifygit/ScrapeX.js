@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import { Card, Icon, PageHero, Reveal, Section } from "@/components/site/Layout";
 import { LiveDemo } from "@/components/site/LiveDemo";
-import { DEMO_PAGE_LIMIT } from "@/lib/demo/schema";
+import { DEMO_CONTACT_LIMIT } from "@/lib/demo/schema";
 
 export const metadata: Metadata = {
   title: "Live demo — ScrapeX",
-  description: `Point ScrapeX at a public page and watch it pull the data out, live. Verify your company email and the demo scrapes up to ${DEMO_PAGE_LIMIT} pages, then hands you the spreadsheet.`,
+  description: `Point ScrapeX at a public website and watch it pull out contact details, live. Verify your company email and the demo collects up to ${DEMO_CONTACT_LIMIT} contacts, then hands you the spreadsheet.`,
   openGraph: {
     title: "Live demo — ScrapeX",
-    description: "Watch ScrapeX pull data off a real page, then download the spreadsheet.",
+    description:
+      "Watch ScrapeX pull contact details off a real website, then download the spreadsheet.",
     type: "website",
   },
   twitter: { card: "summary_large_image" },
@@ -16,8 +17,8 @@ export const metadata: Metadata = {
 
 const facts = [
   {
-    t: `${DEMO_PAGE_LIMIT} pages, then it stops`,
-    d: "The demo follows links from your page and stops at the limit. The real thing has no limit.",
+    t: `${DEMO_CONTACT_LIMIT} contacts, then it stops`,
+    d: "It keeps reading pages until it has that many emails and phone numbers. The real thing has no limit.",
     i: "M4 7h16M4 12h10M4 17h7",
   },
   {
@@ -32,7 +33,7 @@ const facts = [
   },
   {
     t: "Your data, downloadable",
-    d: "Excel, CSV, JSON or Markdown the moment the run finishes.",
+    d: "Every contact with the page it came from, as Excel, CSV, JSON or Markdown.",
     i: "M14 3H6v18h12V7zM14 3v4h4M9 13h6M9 17h6",
   },
 ];
@@ -42,8 +43,8 @@ export default function Demo() {
     <>
       <PageHero
         label="Live demo"
-        title="Watch it scrape a real page."
-        sub={`Give us a public URL and your company email. Verify the code we send, and ScrapeX pulls the data off up to ${DEMO_PAGE_LIMIT} pages while you watch — then hands you the spreadsheet.`}
+        title="Watch it find real contacts."
+        sub={`Give us a public website and your company email. Verify the code we send, and ScrapeX reads the site until it has ${DEMO_CONTACT_LIMIT} contact details — then hands you the spreadsheet.`}
       />
       <Section>
         <div className="grid gap-10 lg:grid-cols-[1.25fr_1fr] lg:gap-14">

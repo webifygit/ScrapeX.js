@@ -1,52 +1,36 @@
-// One table, four downloads. The column order is shared so a CSV, a spreadsheet
-// and the on-screen table all show the same thing in the same order.
+// One table of contacts, four downloads. The column order is shared so the CSV,
+// the spreadsheet and the on-screen rows all read the same way.
 
 import { buildXlsx, type SheetCell } from "@/lib/xlsx";
 import type { ExportFormat } from "./schema";
-import type { RunSummary, ScrapedPage } from "./types";
+import type { Contact, RunSummary } from "./types";
 
 export const columns = [
   { key: "index", label: "#", width: 5 },
-  { key: "url", label: "URL", width: 52 },
-  { key: "status", label: "Status", width: 8 },
-  { key: "title", label: "Title", width: 40 },
-  { key: "heading", label: "H1", width: 32 },
-  { key: "description", label: "Description", width: 48 },
-  { key: "price", label: "Price", width: 12 },
-  { key: "currency", label: "Currency", width: 10 },
-  { key: "emails", label: "Emails", width: 30 },
-  { key: "phones", label: "Phones", width: 20 },
-  { key: "links", label: "Links", width: 8 },
-  { key: "images", label: "Images", width: 8 },
-  { key: "words", label: "Words", width: 8 },
-  { key: "bytes", label: "Bytes", width: 10 },
-  { key: "ms", label: "Fetch ms", width: 10 },
-  { key: "fetchedAt", label: "Fetched at", width: 22 },
+  { key: "type", label: "Type", width: 10 },
+  { key: "value", label: "Contact", width: 34 },
+  { key: "name", label: "Name", width: 22 },
+  { key: "sourceTitle", label: "Page title", width: 38 },
+  { key: "sourceUrl", label: "Source page", width: 52 },
+  { key: "context", label: "Found in", width: 60 },
+  { key: "foundAt", label: "Found at", width: 22 },
 ] as const;
 
-function rowFor(page: ScrapedPage, index: number): SheetCell[] {
+function rowFor(contact: Contact, index: number): SheetCell[] {
   return [
     index + 1,
-    page.url,
-    page.status,
-    page.title,
-    page.heading,
-    page.description,
-    page.price,
-    page.currency,
-    page.emails.join(", "),
-    page.phones.join(", "),
-    page.links,
-    page.images,
-    page.words,
-    page.bytes,
-    page.ms,
-    page.fetchedAt,
+    contact.type,
+    contact.value,
+    contact.name,
+    contact.sourceTitle,
+    contact.sourceUrl,
+    contact.context,
+    contact.foundAt,
   ];
 }
 
-export function toRows(pages: ScrapedPage[]) {
-  return pages.map(rowFor);
+export function toRows(contacts: Contact[]) {
+  return contacts.map(rowFor);
 }
 
 function csvCell(value: SheetCell) {
@@ -54,59 +38,52 @@ function csvCell(value: SheetCell) {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-export function toCsv(pages: ScrapedPage[]) {
+export function toCsv(contacts: Contact[]) {
   const lines = [columns.map((c) => csvCell(c.label)).join(",")];
-  for (const row of toRows(pages)) lines.push(row.map(csvCell).join(","));
+  for (const row of toRows(contacts)) lines.push(row.map(csvCell).join(","));
   // The BOM is what makes Excel read the file as UTF-8 on a double click.
   return `﻿${lines.join("\r\n")}\r\n`;
 }
 
-export function toJson(pages: ScrapedPage[], summary: RunSummary | null) {
+export function toJson(contacts: Contact[], summary: RunSummary | null) {
   return `${JSON.stringify(
-    {
-      source: "ScrapeX live demo",
-      generatedAt: new Date().toISOString(),
-      summary,
-      pages,
-    },
+    { source: "ScrapeX live demo", generatedAt: new Date().toISOString(), summary, contacts },
     null,
     2,
   )}\n`;
 }
 
-export function toMarkdown(pages: ScrapedPage[], summary: RunSummary | null) {
-  const shown = ["index", "url", "status", "title", "price", "emails"] as const;
+export function toMarkdown(contacts: Contact[], summary: RunSummary | null) {
+  const shown = ["index", "type", "value", "name", "sourceUrl"] as const;
   const picked = columns.filter((c) => (shown as readonly string[]).includes(c.key));
   const cell = (value: SheetCell) =>
     String(value ?? "")
       .replace(/\|/g, "\\|")
       .replace(/\n/g, " ");
 
-  const head = `| ${picked.map((c) => c.label).join(" | ")} |`;
-  const rule = `| ${picked.map(() => "---").join(" | ")} |`;
-  const body = toRows(pages).map((row) => {
+  const body = toRows(contacts).map((row) => {
     const byKey = Object.fromEntries(columns.map((c, i) => [c.key, row[i]]));
     return `| ${picked.map((c) => cell(byKey[c.key])).join(" | ")} |`;
   });
 
   return [
-    `# ScrapeX live demo — ${summary?.host ?? "results"}`,
+    `# ScrapeX live demo — ${summary?.host ?? "contacts"}`,
     "",
     summary
-      ? `${summary.pages} of ${summary.limit} pages from ${summary.startUrl}, finished ${summary.finishedAt} in ${(summary.ms / 1000).toFixed(1)}s.`
+      ? `${summary.contacts} contacts from ${summary.pagesScanned} pages on ${summary.startUrl}, finished ${summary.finishedAt} in ${(summary.ms / 1000).toFixed(1)}s.`
       : "",
     "",
-    head,
-    rule,
+    `| ${picked.map((c) => c.label).join(" | ")} |`,
+    `| ${picked.map(() => "---").join(" | ")} |`,
     ...body,
     "",
   ].join("\n");
 }
 
-export function toXlsx(pages: ScrapedPage[], summary: RunSummary | null) {
-  const rows: SheetCell[][] = [columns.map((c) => c.label), ...toRows(pages)];
+export function toXlsx(contacts: Contact[], summary: RunSummary | null) {
+  const rows: SheetCell[][] = [columns.map((c) => c.label), ...toRows(contacts)];
   return buildXlsx(rows, {
-    sheetName: summary ? `Demo ${summary.host}`.slice(0, 31) : "Demo",
+    sheetName: summary ? `Contacts ${summary.host}`.slice(0, 31) : "Contacts",
     widths: columns.map((c) => c.width),
   });
 }
@@ -124,5 +101,5 @@ export const exportMeta: Record<ExportFormat, { extension: string; contentType: 
 export function exportFilename(summary: RunSummary | null, format: ExportFormat) {
   const host = (summary?.host ?? "scrapex-demo").replace(/[^a-z0-9.-]/gi, "-");
   const day = new Date().toISOString().slice(0, 10);
-  return `scrapex-demo-${host}-${day}.${exportMeta[format].extension}`;
+  return `scrapex-contacts-${host}-${day}.${exportMeta[format].extension}`;
 }

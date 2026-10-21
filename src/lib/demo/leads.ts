@@ -35,7 +35,7 @@ export async function recordLead(lead: Lead) {
       email: lead.email,
       whatsapp: lead.whatsapp,
       url: lead.url,
-      pages: lead.summary?.pages ?? 0,
+      contacts: lead.summary?.contacts ?? 0,
     });
   } catch (error) {
     console.error("[demo] could not send the lead notification", error);

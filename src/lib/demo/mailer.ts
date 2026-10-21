@@ -55,7 +55,7 @@ export function sendLeadNotification(lead: {
   email: string;
   whatsapp: string;
   url: string;
-  pages: number;
+  contacts: number;
 }) {
   const to = process.env.DEMO_LEADS_EMAIL;
   if (!to) return Promise.resolve<MailResult>({ ok: false, reason: "unconfigured" });
@@ -68,7 +68,7 @@ export function sendLeadNotification(lead: {
       `${lead.email} verified their email and ran the live demo.`,
       "",
       `Target:   ${lead.url}`,
-      `Pages:    ${lead.pages}`,
+      `Contacts: ${lead.contacts}`,
       `WhatsApp: ${lead.whatsapp || "—"}`,
     ].join("\n"),
   });

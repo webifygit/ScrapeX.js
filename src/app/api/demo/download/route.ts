@@ -5,7 +5,7 @@ import { exportFormats, type ExportFormat } from "@/lib/demo/schema";
 export async function GET(request: Request) {
   const session = await sessionFromCookie();
   if (!session?.verified) return json({ error: "Your demo session has expired." }, 410);
-  if (session.pages.length === 0) return json({ error: "Nothing has been scraped yet." }, 409);
+  if (session.contacts.length === 0) return json({ error: "Nothing has been scraped yet." }, 409);
 
   const asked = new URL(request.url).searchParams.get("format") ?? "csv";
   if (!(exportFormats as readonly string[]).includes(asked)) {
@@ -15,12 +15,12 @@ export async function GET(request: Request) {
 
   const body =
     format === "xlsx"
-      ? (toXlsx(session.pages, session.summary) as unknown as BodyInit)
+      ? (toXlsx(session.contacts, session.summary) as unknown as BodyInit)
       : format === "json"
-        ? toJson(session.pages, session.summary)
+        ? toJson(session.contacts, session.summary)
         : format === "md"
-          ? toMarkdown(session.pages, session.summary)
-          : toCsv(session.pages);
+          ? toMarkdown(session.contacts, session.summary)
+          : toCsv(session.contacts);
 
   return new Response(body, {
     headers: {

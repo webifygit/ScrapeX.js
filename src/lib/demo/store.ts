@@ -2,7 +2,7 @@
 // ten minutes, and losing them all on a deploy is fine. It hangs off globalThis
 // so every route handler shares one instance whatever Next does to the bundles.
 
-import type { RunSummary, ScrapedPage } from "./types";
+import type { Contact, RunSummary } from "./types";
 
 export type DemoSession = {
   id: string;
@@ -18,7 +18,7 @@ export type DemoSession = {
   verified: boolean;
   createdAt: number;
   running: boolean;
-  pages: ScrapedPage[];
+  contacts: Contact[];
   summary: RunSummary | null;
 };
 

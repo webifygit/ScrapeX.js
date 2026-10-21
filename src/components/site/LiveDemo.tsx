@@ -5,14 +5,14 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { fieldClass, Icon } from "./Layout";
 import {
-  DEMO_PAGE_LIMIT,
+  DEMO_CONTACT_LIMIT,
   demoStartSchema,
   demoVerifySchema,
   exportFormatLabels,
   exportFormats,
   OTP_LENGTH,
 } from "@/lib/demo/schema";
-import type { RunEvent, RunSummary, ScrapedPage } from "@/lib/demo/types";
+import type { Contact, RunEvent, RunSummary } from "@/lib/demo/types";
 
 type Stage = "target" | "code" | "running" | "done";
 type Skipped = { url: string; reason: string };
@@ -20,8 +20,10 @@ type Skipped = { url: string; reason: string };
 const steps: { id: Stage; label: string }[] = [
   { id: "target", label: "Target" },
   { id: "code", label: "Verify" },
-  { id: "done", label: "Results" },
+  { id: "done", label: "Contacts" },
 ];
+
+type Scanning = { url: string; title: string; count: number };
 
 const stageIndex: Record<Stage, number> = { target: 0, code: 1, running: 2, done: 2 };
 
@@ -37,7 +39,8 @@ export function LiveDemo() {
   const [code, setCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
 
-  const [pages, setPages] = useState<ScrapedPage[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [scanning, setScanning] = useState<Scanning | null>(null);
   const [skipped, setSkipped] = useState<Skipped[]>([]);
   const [summary, setSummary] = useState<RunSummary | null>(null);
 
@@ -53,7 +56,8 @@ export function LiveDemo() {
 
   const runScrape = useCallback(async () => {
     setStage("running");
-    setPages([]);
+    setContacts([]);
+    setScanning(null);
     setSkipped([]);
     setSummary(null);
     setNotice("");
@@ -79,7 +83,9 @@ export function LiveDemo() {
     let buffer = "";
 
     const handle = (event: RunEvent) => {
-      if (event.type === "page") setPages((current) => [...current, event.page]);
+      if (event.type === "contact") setContacts((current) => [...current, event.contact]);
+      else if (event.type === "page")
+        setScanning({ url: event.url, title: event.title, count: event.pagesScanned });
       else if (event.type === "skip") setSkipped((current) => [...current, event]);
       else if (event.type === "done") {
         setSummary(event.summary);
@@ -208,7 +214,8 @@ export function LiveDemo() {
   const restart = () => {
     setStage("target");
     setCode("");
-    setPages([]);
+    setContacts([]);
+    setScanning(null);
     setSkipped([]);
     setSummary(null);
     setNotice("");
@@ -237,7 +244,7 @@ export function LiveDemo() {
                 label="Page to scrape"
                 placeholder="example-store.com/catalog"
                 error={fieldErrors.url}
-                hint={`We follow links from this page and stop at ${DEMO_PAGE_LIMIT} pages.`}
+                hint={`We follow links from here until we have ${DEMO_CONTACT_LIMIT} contact details.`}
                 autoComplete="url"
               />
               <Field
@@ -358,7 +365,8 @@ export function LiveDemo() {
           <Panel key="results" reduce={reduce}>
             <Results
               stage={stage}
-              pages={pages}
+              contacts={contacts}
+              scanning={scanning}
               skipped={skipped}
               summary={summary}
               onRestart={restart}
@@ -456,21 +464,24 @@ function Field({
 
 function Results({
   stage,
-  pages,
+  contacts,
+  scanning,
   skipped,
   summary,
   onRestart,
   reduce,
 }: {
   stage: Stage;
-  pages: ScrapedPage[];
+  contacts: Contact[];
+  scanning: Scanning | null;
   skipped: Skipped[];
   summary: RunSummary | null;
   onRestart: () => void;
   reduce: boolean;
 }) {
   const running = stage === "running";
-  const progress = Math.round((pages.length / DEMO_PAGE_LIMIT) * 100);
+  const progress = Math.round((contacts.length / DEMO_CONTACT_LIMIT) * 100);
+  const foundNothing = stage === "done" && contacts.length === 0;
 
   return (
     <div className="space-y-6">
@@ -485,20 +496,33 @@ function Results({
                 transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
                 className="grid h-7 w-7 place-items-center rounded-full border-2 border-ink border-t-transparent"
               />
-              Scraping {pages.length} of {DEMO_PAGE_LIMIT}…
+              {contacts.length} of {DEMO_CONTACT_LIMIT} contacts found…
             </h3>
+            {scanning && (
+              <p className="mt-2 truncate font-mono text-xs text-muted-foreground">
+                Reading page {scanning.count}: {scanning.url}
+              </p>
+            )}
           </>
+        ) : foundNothing ? (
+          <div className="rounded-2xl border-2 border-ink bg-card px-4 py-3">
+            <p className="font-display text-xl font-bold">No contact details found</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              We read {summary?.pagesScanned ?? 0} pages on {summary?.host} and found no email
+              addresses or phone numbers in the markup. Plenty of sites hide them behind forms or
+              images — that is exactly the sort of thing a real ScrapeX job is built for.
+            </p>
+          </div>
         ) : (
           <div className="rounded-2xl border-2 border-ink bg-lime px-4 py-3">
             <p className="font-display text-xl font-bold text-ink">Scrape complete ✓</p>
             <p className="mt-1 text-sm text-ink/80">
-              {summary?.pages ?? pages.length} pages from {summary?.host} in{" "}
-              {((summary?.ms ?? 0) / 1000).toFixed(1)}s
+              {summary?.contacts ?? contacts.length} contacts from {summary?.pagesScanned ?? 0}{" "}
+              pages on {summary?.host} in {((summary?.ms ?? 0) / 1000).toFixed(1)}s
               {summary &&
                 summary.robotsBlocked > 0 &&
                 `, ${summary.robotsBlocked} skipped by robots.txt`}
-              {summary && summary.failed > 0 && `, ${summary.failed} failed`}. Demo limit is{" "}
-              {DEMO_PAGE_LIMIT} pages.
+              . The demo stops at {DEMO_CONTACT_LIMIT} contacts.
             </p>
           </div>
         )}
@@ -520,7 +544,7 @@ function Results({
         </div>
       )}
 
-      {pages.length > 0 && <PageTable pages={pages} reduce={reduce} />}
+      {contacts.length > 0 && <ContactTable contacts={contacts} reduce={reduce} />}
 
       {skipped.length > 0 && (
         <details className="rounded-2xl border bg-muted/40 px-4 py-3 text-sm">
@@ -537,12 +561,12 @@ function Results({
 
       {stage === "done" && (
         <div className="flex flex-wrap items-center gap-3 border-t pt-5">
-          <DownloadMenu disabled={pages.length === 0} />
+          {contacts.length > 0 && <DownloadMenu />}
           <Link
             href="/quote"
             className="inline-flex items-center gap-2 rounded-full border border-ink px-5 py-3 text-sm font-semibold transition-shadow hover:shadow-[4px_4px_0_var(--navy)]"
           >
-            Scrape the whole site <span aria-hidden>→</span>
+            Get the whole list <span aria-hidden>→</span>
           </Link>
           <button
             type="button"
@@ -557,7 +581,7 @@ function Results({
   );
 }
 
-function DownloadMenu({ disabled }: { disabled: boolean }) {
+function DownloadMenu() {
   const ref = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
@@ -570,13 +594,9 @@ function DownloadMenu({ disabled }: { disabled: boolean }) {
 
   return (
     <details ref={ref} className="relative">
-      <summary
-        className={`inline-flex cursor-pointer list-none items-center gap-2 rounded-full border border-ink bg-lime px-5 py-3 text-sm font-semibold text-ink transition-shadow hover:shadow-[4px_4px_0_var(--navy)] ${
-          disabled ? "pointer-events-none opacity-60" : ""
-        }`}
-      >
+      <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-full border border-ink bg-lime px-5 py-3 text-sm font-semibold text-ink transition-shadow hover:shadow-[4px_4px_0_var(--navy)]">
         <Icon d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" className="h-4 w-4" />
-        Download data
+        Download contacts
         <span aria-hidden className="text-xs">
           ▾
         </span>
@@ -600,39 +620,43 @@ function DownloadMenu({ disabled }: { disabled: boolean }) {
   );
 }
 
-function PageTable({ pages, reduce }: { pages: ScrapedPage[]; reduce: boolean }) {
+function ContactTable({ contacts, reduce }: { contacts: Contact[]; reduce: boolean }) {
   return (
     <div className="overflow-hidden rounded-2xl border-2 border-ink bg-card">
       <div className="flex items-center justify-between border-b px-4 py-2.5">
-        <p className="text-sm font-semibold">Scraped rows</p>
-        <span className="label-mono text-muted-foreground">{pages.length} rows</span>
+        <p className="text-sm font-semibold">Contacts found</p>
+        <span className="label-mono text-muted-foreground">
+          {contacts.length} of {DEMO_CONTACT_LIMIT}
+        </span>
       </div>
       <ul className="divide-y">
-        {pages.map((page, index) => (
+        {contacts.map((contact, index) => (
           <motion.li
-            key={`${page.url}-${index}`}
+            key={`${contact.value}-${index}`}
             initial={reduce ? false : { opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.25 }}
-            className="grid gap-1 px-4 py-3 sm:grid-cols-[1fr_auto] sm:items-center"
+            className="grid gap-1 px-4 py-3 sm:grid-cols-[1fr_auto] sm:items-start"
           >
             <div className="min-w-0">
-              <p className="truncate font-mono text-[11px] text-muted-foreground">{page.url}</p>
-              <p className="truncate text-sm font-semibold">{page.title || "(no title)"}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {[
-                  page.price && `${page.currency ? `${page.currency} ` : ""}${page.price}`,
-                  page.emails.length > 0 &&
-                    `${page.emails.length} email${page.emails.length > 1 ? "s" : ""}`,
-                  `${page.links} links`,
-                  `${page.words} words`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
+              <p className="truncate font-mono text-sm font-semibold">{contact.value}</p>
+              {contact.name && <p className="truncate text-sm">{contact.name}</p>}
+              <a
+                href={contact.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="truncate text-xs text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground"
+              >
+                {contact.sourceTitle || contact.sourceUrl}
+              </a>
+              {contact.context && (
+                <p className="mt-1 line-clamp-2 text-xs italic text-muted-foreground">
+                  {contact.context}
+                </p>
+              )}
             </div>
             <span className="label-mono shrink-0 rounded-md bg-muted px-2 py-0.5 text-muted-foreground">
-              {page.status} · {page.ms}ms
+              {contact.type}
             </span>
           </motion.li>
         ))}

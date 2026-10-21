@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { extractPage, stripTags } from "@/lib/demo/extract";
+import { extractContacts, extractPage, nameFromEmail, stripTags } from "@/lib/demo/extract";
 import { toCsv, toMarkdown, toXlsx } from "@/lib/demo/export";
 import { checkUrlShape, isPrivateAddress } from "@/lib/demo/net-guard";
 import { parseRobots, robotsAllows } from "@/lib/demo/robots";
 import { companyEmailProblem, demoStartSchema, targetUrl } from "@/lib/demo/schema";
-import type { ScrapedPage } from "@/lib/demo/types";
+import type { Contact } from "@/lib/demo/types";
 import { buildXlsx, columnName } from "@/lib/xlsx";
 
 describe("company email gate", () => {
@@ -144,103 +144,122 @@ Allow: /private/public-page
   });
 });
 
-describe("extraction", () => {
+describe("page extraction", () => {
   const html = `<!doctype html>
 <html><head>
-<title>Wireless Speaker X2 &mdash; Example Store</title>
-<meta name="description" content="Portable speaker, 12h battery.">
-<link rel="canonical" href="/catalog/speaker-x2">
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Product","name":"Speaker X2",
- "offers":{"@type":"Offer","price":"129.00","priceCurrency":"USD"}}
-</script>
+<title>Our team &mdash; Example Store</title>
 <style>.a{color:red}</style>
 </head><body>
-<h1>Wireless Speaker <em>X2</em></h1>
-<img src="/a.jpg"><img src="/b.jpg">
-<a href="/catalog?page=2">Next</a>
+<h1>Our team</h1>
+<a href="/about?page=2">About</a>
 <a href="https://example-store.com/support">Support</a>
-<a href="mailto:Sales@Example-Store.com">Email us</a>
-<a href="tel:+1 555 010 9999">Call</a>
-<p>Questions? help@example-store.com or +44 20 7946 0958.</p>
+<a href="mailto:sales@example-store.com">Email</a>
+<a href="#top">Top</a>
+<a href="/brochure.pdf">Brochure</a>
 <script>var tracking = "ignore me";</script>
 </body></html>`;
 
-  const page = extractPage(html, "https://example-store.com/catalog/speaker-x2");
+  const page = extractPage(html, "https://example-store.com/team");
 
-  it("reads the headline fields", () => {
-    expect(page.title).toBe("Wireless Speaker X2 — Example Store");
-    expect(page.heading).toBe("Wireless Speaker X2");
-    expect(page.description).toBe("Portable speaker, 12h battery.");
-    expect(page.canonical).toBe("https://example-store.com/catalog/speaker-x2");
+  it("decodes the title", () => {
+    expect(page.title).toBe("Our team — Example Store");
   });
 
-  it("finds the price in JSON-LD", () => {
-    expect(page.price).toBe("129.00");
-    expect(page.currency).toBe("USD");
-  });
-
-  it("collects links, images, emails and phones", () => {
-    expect(page.images).toBe(2);
-    expect(page.links).toContain("https://example-store.com/catalog?page=2");
-    expect(page.links).toContain("https://example-store.com/support");
-    expect(page.emails).toEqual(
-      expect.arrayContaining(["sales@example-store.com", "help@example-store.com"]),
-    );
-    expect(page.phones.some((p) => p.includes("555"))).toBe(true);
-    expect(page.phones.some((p) => p.includes("7946"))).toBe(true);
+  it("returns absolute links and leaves out anchors and mailto", () => {
+    expect(page.links).toEqual([
+      "https://example-store.com/about?page=2",
+      "https://example-store.com/support",
+      "https://example-store.com/brochure.pdf",
+    ]);
   });
 
   it("leaves script and style content out of the text", () => {
     const text = stripTags(html);
     expect(text).not.toContain("ignore me");
     expect(text).not.toContain("color:red");
-    expect(page.words).toBeGreaterThan(5);
+  });
+});
+
+describe("contacts", () => {
+  const html = `<html><body>
+<h1>Our team</h1>
+<p>Jordan Reyes, AV Services — <a href="mailto:J.Reyes@Example-Store.com">email Jordan</a></p>
+<p>Front desk: <a href="tel:+1 555 010 9999">+1 555 010 9999</a></p>
+<p>General enquiries go to info@example-store.com or call +44 20 7946 0958.</p>
+<p>Spacer image: sprite@2x.png</p>
+<p>Duplicate: J.REYES@example-store.com</p>
+</body></html>`;
+
+  const found = extractContacts(html);
+
+  it("finds every address and number once", () => {
+    expect(found.map((c) => c.value)).toEqual([
+      "j.reyes@example-store.com",
+      "+1 555 010 9999",
+      "info@example-store.com",
+      "+44 20 7946 0958",
+    ]);
+  });
+
+  it("names a person but not a shared mailbox", () => {
+    expect(found[0].name).toBe("J. Reyes");
+    expect(found.find((c) => c.value.startsWith("info"))?.name).toBe("");
+    expect(nameFromEmail("priya.sharma@acme.com")).toBe("Priya Sharma");
+    expect(nameFromEmail("sales@acme.com")).toBe("");
+    expect(nameFromEmail("x1@acme.com")).toBe("");
+  });
+
+  it("describes a linked address with the link's own words", () => {
+    expect(found[0].context).toBe("email Jordan");
+  });
+
+  it("falls back to the words around an address written in the page text", () => {
+    expect(found.find((c) => c.value.startsWith("info"))?.context).toContain("General enquiries");
+  });
+
+  it("ignores filenames that look like addresses", () => {
+    expect(found.some((c) => c.value.includes("2x.png"))).toBe(false);
+  });
+
+  it("marks the type", () => {
+    expect(found.filter((c) => c.type === "email")).toHaveLength(2);
+    expect(found.filter((c) => c.type === "phone")).toHaveLength(2);
   });
 });
 
 describe("exports", () => {
-  const pages: ScrapedPage[] = [
+  const contacts: Contact[] = [
     {
-      url: "https://example-store.com/a",
-      status: 200,
-      title: 'Chair, "comfy", 2 seats',
-      description: "Line one\nline two",
-      heading: "Chair",
-      price: "129.00",
-      currency: "USD",
-      links: 12,
-      images: 3,
-      emails: ["sales@example-store.com"],
-      phones: [],
-      words: 420,
-      bytes: 51200,
-      ms: 310,
-      fetchedAt: "2026-10-21T09:00:00.000Z",
+      type: "email",
+      value: "j.reyes@example-store.com",
+      name: "J Reyes",
+      context: 'Jordan Reyes, "AV Services", email\nJordan',
+      sourceUrl: "https://example-store.com/team",
+      sourceTitle: "Our team",
+      foundAt: "2026-10-21T09:00:00.000Z",
     },
   ];
 
   it("escapes quotes, commas and newlines in CSV", () => {
-    const csv = toCsv(pages);
-    expect(csv.startsWith("﻿#,URL,Status")).toBe(true);
-    expect(csv).toContain('"Chair, ""comfy"", 2 seats"');
-    expect(csv).toContain('"Line one\nline two"');
+    const csv = toCsv(contacts);
+    expect(csv.startsWith("\uFEFF#,Type,Contact,Name")).toBe(true);
+    expect(csv).toContain('"Jordan Reyes, ""AV Services"", email\nJordan"');
   });
 
   it("writes a markdown table", () => {
-    const md = toMarkdown(pages, null);
-    expect(md).toContain("| # | URL | Status | Title | Price | Emails |");
-    expect(md).toContain("https://example-store.com/a");
+    const md = toMarkdown(contacts, null);
+    expect(md).toContain("| # | Type | Contact | Name | Source page |");
+    expect(md).toContain("j.reyes@example-store.com");
   });
 
   it("builds a real xlsx package", () => {
-    const bytes = toXlsx(pages, null);
+    const bytes = toXlsx(contacts, null);
     const text = Buffer.from(bytes).toString("latin1");
     expect(bytes[0]).toBe(0x50); // P
     expect(bytes[1]).toBe(0x4b); // K
     expect(text).toContain("xl/worksheets/sheet1.xml");
     expect(text).toContain("[Content_Types].xml");
-    expect(text).toContain("Chair, &quot;comfy&quot;, 2 seats");
+    expect(text).toContain("&quot;AV Services&quot;");
     expect(text.lastIndexOf("PK\u0005\u0006")).toBeGreaterThan(0);
   });
 

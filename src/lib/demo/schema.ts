@@ -9,7 +9,10 @@ import {
   reservedTlds,
 } from "./email-domains";
 
-export const DEMO_PAGE_LIMIT = 10;
+/** The demo stops as soon as it has this many contact details. */
+export const DEMO_CONTACT_LIMIT = 10;
+/** Safety net: how many pages it may read while looking for them. */
+export const DEMO_PAGE_SCAN_LIMIT = 20;
 export const OTP_LENGTH = 6;
 export const OTP_TTL_MS = 10 * 60 * 1000;
 export const OTP_MAX_ATTEMPTS = 5;

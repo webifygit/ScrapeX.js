@@ -1,28 +1,21 @@
 // Shapes shared by the crawler, the API routes and the demo UI.
 
-export type ScrapedPage = {
-  url: string;
-  status: number;
-  title: string;
-  description: string;
-  heading: string;
-  price: string;
-  currency: string;
-  links: number;
-  images: number;
-  emails: string[];
-  phones: string[];
-  words: number;
-  bytes: number;
-  ms: number;
-  fetchedAt: string;
+export type Contact = {
+  type: "email" | "phone";
+  value: string;
+  name: string;
+  context: string;
+  sourceUrl: string;
+  sourceTitle: string;
+  foundAt: string;
 };
 
 export type RunSummary = {
   startUrl: string;
   host: string;
-  pages: number;
+  contacts: number;
   limit: number;
+  pagesScanned: number;
   ms: number;
   robotsBlocked: number;
   failed: number;
@@ -32,7 +25,8 @@ export type RunSummary = {
 /** One line of the NDJSON stream the run endpoint writes. */
 export type RunEvent =
   | { type: "start"; startUrl: string; host: string; limit: number; crawlDelayMs: number }
-  | { type: "page"; page: ScrapedPage; index: number }
+  | { type: "page"; url: string; title: string; pagesScanned: number }
+  | { type: "contact"; contact: Contact; index: number }
   | { type: "skip"; url: string; reason: string }
   | { type: "done"; summary: RunSummary }
   | { type: "error"; message: string };
