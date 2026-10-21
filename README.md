@@ -2,7 +2,7 @@
 
 Marketing site for ScrapeX, a custom web-scraping service. Minimalist, professional and playful: paper background, ink text, lime accents, Syne display type, framer-motion micro-animations.
 
-Built with Next.js (App Router), React 19, Tailwind CSS v4 and framer-motion. Ported from the original Lovable / TanStack Start project.
+Built with Next.js (App Router), React 19, Tailwind CSS v4 and framer-motion.
 
 ## Run it
 

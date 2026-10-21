@@ -111,7 +111,10 @@ export function SiteShell({ children, year }: { children: ReactNode; year: numbe
           </div>
         </div>
         <p className="mx-auto mt-16 max-w-6xl select-none font-display text-[22vw] font-extrabold leading-none tracking-tighter text-navy-foreground/10 md:text-[13rem]">ScrapeX</p>
-        <p className="mx-auto mt-4 max-w-6xl border-t border-navy-line pt-6 text-xs text-navy-muted">© {year} ScrapeX · scrapex.site · Public data only.</p>
+        <div className="mx-auto mt-4 flex max-w-6xl flex-wrap items-center justify-between gap-3 border-t border-navy-line pt-6 text-xs text-navy-muted">
+          <p>© {year} ScrapeX · scrapex.site · Public data only.</p>
+          <p>Powered by <a href="https://www.webify.ai/" className="font-semibold text-navy-foreground underline decoration-lime decoration-2 underline-offset-4 transition-colors hover:text-orange">webify.ai</a></p>
+        </div>
       </footer>
     </div>
   );
