@@ -60,19 +60,58 @@ export function summaryFields(summary: RunSummary | null) {
     : {};
 }
 
+const leadEvents: LeadEvent[] = [
+  "code_requested",
+  "code_resent",
+  "verified",
+  "completed",
+  "failed",
+];
+
+const text = (value: unknown) => (typeof value === "string" ? value : "");
+const count = (value: unknown) => (typeof value === "number" ? value : undefined);
+
+/**
+ * Fills in whatever a line is missing. The log is append-only and outlives the
+ * code that wrote it: the first version of this file recorded completed runs
+ * only and had no event field at all, and a reader that assumes today's shape
+ * crashes on yesterday's rows.
+ */
+function normalise(raw: Record<string, unknown>): LeadRecord {
+  const event = text(raw.event) as LeadEvent;
+  return {
+    at: text(raw.at),
+    event: leadEvents.includes(event) ? event : "completed",
+    session: text(raw.session),
+    email: text(raw.email),
+    whatsapp: text(raw.whatsapp),
+    url: text(raw.url),
+    ip: text(raw.ip),
+    userAgent: text(raw.userAgent),
+    referer: text(raw.referer),
+    contacts: count(raw.contacts) ?? count((raw.summary as Record<string, unknown>)?.contacts),
+    pagesScanned:
+      count(raw.pagesScanned) ?? count((raw.summary as Record<string, unknown>)?.pagesScanned),
+    ms: count(raw.ms) ?? count((raw.summary as Record<string, unknown>)?.ms),
+    error: text(raw.error) || undefined,
+  };
+}
+
 /** Newest first. Unreadable lines are skipped rather than losing the whole file. */
 export async function readLeads(limit = 500): Promise<LeadRecord[]> {
-  let text: string;
+  let body: string;
   try {
-    text = await readFile(leadsFile(), "utf8");
+    body = await readFile(leadsFile(), "utf8");
   } catch {
     return [];
   }
   const rows: LeadRecord[] = [];
-  for (const line of text.split("\n")) {
+  for (const line of body.split("\n")) {
     if (!line.trim()) continue;
     try {
-      rows.push(JSON.parse(line) as LeadRecord);
+      const parsed: unknown = JSON.parse(line);
+      if (parsed && typeof parsed === "object")
+        rows.push(normalise(parsed as Record<string, unknown>));
     } catch {
       continue;
     }

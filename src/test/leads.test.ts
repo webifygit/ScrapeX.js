@@ -52,6 +52,28 @@ describe("lead log", () => {
     expect(rows[0].event).toBe("verified");
   });
 
+  it("reads rows written by the first version of the log", async () => {
+    // No event field, and the counts nested under summary.
+    writeFileSync(
+      file,
+      `${JSON.stringify({
+        at: "2026-10-21T09:00:00.000Z",
+        email: "old@acme.com",
+        whatsapp: "",
+        url: "https://acme.com/",
+        ip: "1.2.3.4",
+        summary: { contacts: 4, pagesScanned: 9, ms: 8200 },
+      })}\n`,
+      "utf8",
+    );
+    const rows = await readLeads();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].event).toBe("completed");
+    expect(rows[0].contacts).toBe(4);
+    expect(rows[0].pagesScanned).toBe(9);
+    expect(typeof rows[0].event).toBe("string");
+  });
+
   it("returns nothing when no demo has run yet", async () => {
     process.env.DEMO_LEADS_FILE = join(dir, "does-not-exist.jsonl");
     expect(await readLeads()).toEqual([]);
