@@ -27,6 +27,7 @@ npm run format     # prettier
 | Route           | File                                   |
 | --------------- | -------------------------------------- |
 | `/`             | `src/app/(site)/page.tsx`              |
+| `/demo`         | `src/app/(site)/demo/page.tsx`         |
 | `/services`     | `src/app/(site)/services/page.tsx`     |
 | `/case-studies` | `src/app/(site)/case-studies/page.tsx` |
 | `/quote`        | `src/app/(site)/quote/page.tsx`        |
@@ -46,7 +47,42 @@ npm run format     # prettier
 
 ## Forms
 
-The quote and removal forms validate with zod on the client and show a success state. They do not send anything yet; wire `SimpleForm`'s `onSubmit` to a Server Action or API route when a backend exists.
+The quote and removal forms validate with zod on the client and show a success state. They do not send anything yet; wire `SimpleForm`'s `onSubmit` to a Server Action or API route when a backend exists. The live demo is the exception — it talks to real API routes.
+
+## Live demo
+
+`/demo` lets a visitor point ScrapeX at a public page and watch it work. The flow: enter a URL and a company email (free and throwaway mailboxes are refused), optionally a WhatsApp number, receive a six-digit code by email, enter it, and the crawler runs while the rows stream onto the page. It stops at `DEMO_PAGE_LIMIT` (10) pages, then offers the data as Excel, CSV, JSON or Markdown.
+
+| Piece                     | File                                                                    |
+| ------------------------- | ----------------------------------------------------------------------- |
+| UI, all four steps        | `src/components/site/LiveDemo.tsx`                                      |
+| Shared validation         | `src/lib/demo/schema.ts`, `src/lib/demo/email-domains.ts`               |
+| Session, OTP, rate limits | `src/lib/demo/store.ts`, `src/lib/demo/otp.ts`                          |
+| Crawler                   | `src/lib/demo/crawl.ts`, `extract.ts`, `robots.ts`, `net-guard.ts`      |
+| Downloads                 | `src/lib/demo/export.ts`, `src/lib/xlsx.ts` (no spreadsheet dependency) |
+| API                       | `src/app/api/demo/{start,verify,run,download}/route.ts`                 |
+
+What makes it safe to leave open on a public site:
+
+- **No private targets.** Every URL and every redirect hop is resolved and checked, so loopback, private ranges and the cloud metadata address are refused — see `net-guard.ts`.
+- **robots.txt first.** The crawler reads the site's rules before its first request and skips whatever they disallow, at the crawl delay they ask for.
+- **Bounded.** 10 pages, one request at a time, 8s per request, 1.5 MB per page, 75s per run.
+- **Rate limited.** Six codes per IP per hour, five per address per day, three runs per address per day.
+- **Verified leads only.** A run is appended to `data/demo-leads.jsonl` (gitignored) once the address is verified, and emailed to `DEMO_LEADS_EMAIL` if that is set.
+
+Sessions live in memory in the single PM2 process, so a deploy drops any codes in flight — ten minutes of inconvenience at worst, and the reason this does not need a database yet.
+
+### Demo environment
+
+Mail goes out through [Resend](https://resend.com); the droplet cannot send its own. The deploy workflow writes these to `/var/www/scrapex.site/.env.local` from repository secrets of the same name, so they are set by adding a secret in GitHub rather than by touching the server.
+
+| Variable           | Required | What it does                                                                                                     |
+| ------------------ | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`   | yes      | Sends the verification code. Without it the demo answers "verification is not switched on yet" and nothing runs. |
+| `DEMO_FROM_EMAIL`  | no       | From address, default `ScrapeX <demo@scrapex.site>`. Its domain must be verified in Resend.                      |
+| `DEMO_LEADS_EMAIL` | no       | Gets a note each time someone completes a demo.                                                                  |
+| `DEMO_OTP_SECRET`  | no       | Keeps codes valid across restarts. A random one is used per process when unset.                                  |
+| `DEMO_LEADS_FILE`  | no       | Where leads are appended, default `data/demo-leads.jsonl` under the app.                                         |
 
 ## Deploy (Ubuntu server, nginx + PM2)
 

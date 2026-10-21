@@ -20,6 +20,9 @@
 # production
 /build
 
+# demo leads written at runtime by the live demo
+/data
+
 # misc
 .DS_Store
 *.pem

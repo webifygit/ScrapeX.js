@@ -36,6 +36,7 @@ export function Wordmark({ onNavy = false }: { onNavy?: boolean }) {
 }
 
 const navLinks: { label: string; href: string }[] = [
+  { label: "Live demo", href: "/demo" },
   { label: "Services", href: "/services" },
   { label: "How it works", href: "/#how" },
   { label: "Case studies", href: "/case-studies" },
@@ -77,7 +78,8 @@ export function SiteShell({ children, year }: { children: ReactNode; year: numbe
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Link href="/quote" onClick={close} className="rounded-lg bg-burnt px-4 py-2 text-sm font-semibold text-foreground-foreground hover:bg-burnt/90">Get a quote</Link>
+            <Link href="/demo" onClick={close} className="rounded-lg border border-ink bg-lime px-4 py-2 text-sm font-semibold text-ink transition-shadow hover:shadow-[3px_3px_0_var(--navy)]">Live demo</Link>
+            <Link href="/quote" onClick={close} className="hidden rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-navy/5 sm:block">Get a quote</Link>
             <button className="rounded-full border p-2 lg:hidden" aria-label="Open menu" aria-expanded={open} onClick={() => setOpen(!open)}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
             </button>

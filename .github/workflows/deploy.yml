@@ -84,6 +84,29 @@ jobs:
           fi
           chmod 600 ~/.ssh/known_hosts
 
+      # Runtime secrets live in .env.local on the server: it is gitignored, and
+      # deploy.sh only resets tracked files, so it survives every deploy.
+      - name: Sync runtime secrets
+        if: env.DEPLOY_CONFIGURED == 'true'
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DEMO_FROM_EMAIL: ${{ secrets.DEMO_FROM_EMAIL }}
+          DEMO_LEADS_EMAIL: ${{ secrets.DEMO_LEADS_EMAIL }}
+          DEMO_OTP_SECRET: ${{ secrets.DEMO_OTP_SECRET }}
+        run: |
+          : > env.local
+          for name in RESEND_API_KEY DEMO_FROM_EMAIL DEMO_LEADS_EMAIL DEMO_OTP_SECRET; do
+            value="${!name}"
+            if [ -n "$value" ]; then printf '%s=%s\n' "$name" "$value" >> env.local; fi
+          done
+          if [ ! -s env.local ]; then
+            echo "::warning title=No runtime secrets::The live demo cannot send verification codes until RESEND_API_KEY is set."
+          fi
+          ssh -p "$DEPLOY_PORT" -o BatchMode=yes -o ConnectTimeout=20 \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "umask 077 && mkdir -p '$DEPLOY_PATH' && cat > '$DEPLOY_PATH/.env.local'" < env.local
+          rm -f env.local
+
       - name: Run deploy.sh on the droplet
         if: env.DEPLOY_CONFIGURED == 'true'
         env:
@@ -99,7 +122,7 @@ jobs:
         if: env.DEPLOY_CONFIGURED == 'true'
         run: |
           failed=0
-          for path in / /services /case-studies /quote /trust /remove /privacy /terms; do
+          for path in / /demo /services /case-studies /quote /trust /remove /privacy /terms; do
             code=$(curl -sS -o /dev/null -w '%{http_code}' \
               --retry 5 --retry-delay 3 --retry-all-errors --max-time 30 \
               "$SITE_URL$path" || echo 000)

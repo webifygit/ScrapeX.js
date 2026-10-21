@@ -49,7 +49,8 @@ function Hero() {
           <h1 className="mt-4 text-4xl font-bold leading-[1.05] md:text-6xl">Any website. <span className="inline-block -rotate-2 rounded-2xl border-2 border-ink bg-lime px-3">Your data.</span> Ready to use.</h1>
           <p className="mt-6 max-w-xl text-lg text-muted-foreground">ScrapeX builds custom web scrapers that collect the data you need from public websites, check it, and deliver it as a spreadsheet, data feed or CRM import, refreshed on your schedule.</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button href="/quote" variant="orange">Get a quote</Button>
+            <Button href="/demo" variant="orange">Live demo</Button>
+            <Button href="/quote" variant="outline">Get a quote</Button>
             <a href="#how" className="inline-flex items-center rounded-full border border-ink px-6 py-3 text-sm font-semibold hover:shadow-[4px_4px_0_var(--navy)]">See how it works</a>
           </div>
           <p className="mt-6 text-sm text-muted-foreground">Public data only. Every record linked to its source.</p>
